@@ -57,19 +57,19 @@ func (s *OKService) Extract(ctx context.Context, urlStr string) ([]DownloadResul
 			continue
 		}
 		result := DownloadResult{
-			URL:        v.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    s.parseQuality(v.Name),
-			Extension:  "mp4",
-			Duration:   metadata.Duration,
-			Thumbnail:  metadata.Poster,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.mp4", title, v.Name),
+			URL:       v.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   s.parseQuality(v.Name),
+			Extension: "mp4",
+			Duration:  metadata.Duration,
+			Thumbnail: metadata.Poster,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.mp4", title, v.Name),
 			Metadata: map[string]string{
-				"service":   "ok",
-				"video_id":  videoID,
-				"quality":   v.Name,
+				"service":  "ok",
+				"video_id": videoID,
+				"quality":  v.Name,
 			},
 		}
 		results = append(results, result)
@@ -94,12 +94,12 @@ type okMetadata struct {
 
 func (s *OKService) extractMetadata(html string) *okMetadata {
 	metadata := &okMetadata{}
-	
+
 	patterns := map[string]*regexp.Regexp{
-		"title":      regexp.MustCompile(`<meta property="og:title" content="([^"]+)"`),
-		"duration":   regexp.MustCompile(`<meta property="og:video:duration" content="(\d+)"`),
-		"poster":     regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`),
-		"videos":     regexp.MustCompile(`"url":"([^"]+)"[^}]*"name":"([^"]+)"`),
+		"title":    regexp.MustCompile(`<meta property="og:title" content="([^"]+)"`),
+		"duration": regexp.MustCompile(`<meta property="og:video:duration" content="(\d+)"`),
+		"poster":   regexp.MustCompile(`<meta property="og:image" content="([^"]+)"`),
+		"videos":   regexp.MustCompile(`"url":"([^"]+)"[^}]*"name":"([^"]+)"`),
 	}
 
 	if m := patterns["title"].FindStringSubmatch(html); len(m) > 1 {

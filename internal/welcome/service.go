@@ -11,9 +11,9 @@ import (
 	"github.com/SafwanGanz/Sonicos/internal/moderation"
 	"github.com/SafwanGanz/Sonicos/internal/welcomecard"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
-	"go.mau.fi/whatsmeow/proto/waE2E"
 	"google.golang.org/protobuf/proto"
 )
 

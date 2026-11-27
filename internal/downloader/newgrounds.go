@@ -40,15 +40,15 @@ func (s *NewgroundsService) Extract(ctx context.Context, urlStr string) ([]Downl
 
 	var data struct {
 		Portals []struct {
-			ID        string `json:"id"`
-			Title     string `json:"title"`
-			Author    string `json:"author"`
-			Type      string `json:"type"`
-			Video     struct {
+			ID     string `json:"id"`
+			Title  string `json:"title"`
+			Author string `json:"author"`
+			Type   string `json:"type"`
+			Video  struct {
 				Files []struct {
-					URL      string `json:"url"`
-					Quality  string `json:"quality"`
-					Format   string `json:"format"`
+					URL     string `json:"url"`
+					Quality string `json:"quality"`
+					Format  string `json:"format"`
 				} `json:"files"`
 			} `json:"video"`
 			Audio struct {
@@ -77,18 +77,18 @@ func (s *NewgroundsService) Extract(ctx context.Context, urlStr string) ([]Downl
 	for _, vf := range item.Video.Files {
 		if vf.URL != "" {
 			result := DownloadResult{
-				URL:        vf.URL,
-				Title:      title,
-				MediaType:  MediaTypeVideo,
-				Quality:    s.parseQuality(vf.Quality),
-				Extension:  vf.Format,
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s_%s.%s", title, vf.Quality, vf.Format),
+				URL:       vf.URL,
+				Title:     title,
+				MediaType: MediaTypeVideo,
+				Quality:   s.parseQuality(vf.Quality),
+				Extension: vf.Format,
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s_%s.%s", title, vf.Quality, vf.Format),
 				Metadata: map[string]string{
-					"service":   "newgrounds",
-					"item_id":   itemID,
-					"author":    item.Author,
-					"quality":   vf.Quality,
+					"service": "newgrounds",
+					"item_id": itemID,
+					"author":  item.Author,
+					"quality": vf.Quality,
 				},
 			}
 			results = append(results, result)
@@ -98,18 +98,18 @@ func (s *NewgroundsService) Extract(ctx context.Context, urlStr string) ([]Downl
 	for _, af := range item.Audio.Files {
 		if af.URL != "" {
 			result := DownloadResult{
-				URL:        af.URL,
-				Title:      title,
-				MediaType:  MediaTypeAudio,
-				Quality:    QualityAudio,
-				Extension:  "mp3",
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s.mp3", title),
+				URL:       af.URL,
+				Title:     title,
+				MediaType: MediaTypeAudio,
+				Quality:   QualityAudio,
+				Extension: "mp3",
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s.mp3", title),
 				Metadata: map[string]string{
-					"service":  "newgrounds",
-					"item_id":  itemID,
-					"author":   item.Author,
-					"quality":  af.Quality,
+					"service": "newgrounds",
+					"item_id": itemID,
+					"author":  item.Author,
+					"quality": af.Quality,
 				},
 			}
 			results = append(results, result)

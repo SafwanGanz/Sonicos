@@ -122,6 +122,7 @@ func (b *Bot) processMessage(ctx context.Context, evt *events.Message) error {
 		return nil
 	}
 	message.ModerationStore = b.moderation
+	message.AIModeStore = b.aiModeStore
 	if b.groups != nil {
 		message.GroupService = b.groups
 	}
@@ -153,15 +154,13 @@ func (b *Bot) processMessage(ctx context.Context, evt *events.Message) error {
 			return err
 		}
 
-		// Try sending with quoted reply first, fallback to non-quoted on any error (sender key, timeout, etc.)
 		sendWithFallback := func(msg *waE2E.Message) error {
 			sendStart := time.Now()
 			resp, err := b.client.SendMessage(ctx, evt.Info.Chat, msg)
 			sendElapsed := time.Since(sendStart)
 			totalElapsed := time.Since(start)
 			if err != nil {
-				// Retry without quoted context for any message type on any error
-				// Use a fresh context with its own timeout since original may be cancelled
+
 				fallbackMsg := StripQuotedContext(msg)
 				if b.logger != nil {
 					b.logger.Warn("send failed, retrying without quote", "chat", evt.Info.Chat.String(), "error", err)

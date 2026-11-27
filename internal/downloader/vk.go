@@ -39,18 +39,18 @@ func (s *VKService) Extract(ctx context.Context, urlStr string) ([]DownloadResul
 	var data struct {
 		Response struct {
 			Items []struct {
-				ID          int64  `json:"id"`
-				OwnerID     int64  `json:"owner_id"`
-				Title       string `json:"title"`
-				Duration    int    `json:"duration"`
-				Date        int64  `json:"date"`
-				Image       []struct {
+				ID       int64  `json:"id"`
+				OwnerID  int64  `json:"owner_id"`
+				Title    string `json:"title"`
+				Duration int    `json:"duration"`
+				Date     int64  `json:"date"`
+				Image    []struct {
 					URL    string `json:"url"`
 					Width  int    `json:"width"`
 					Height int    `json:"height"`
 				} `json:"image"`
-				Files map[string]string `json:"files"`
-				Player string `json:"player"`
+				Files  map[string]string `json:"files"`
+				Player string            `json:"player"`
 			} `json:"items"`
 		} `json:"response"`
 		Error struct {
@@ -88,20 +88,20 @@ func (s *VKService) Extract(ctx context.Context, urlStr string) ([]DownloadResul
 	for _, q := range qualityOrder {
 		if url, ok := video.Files[fmt.Sprintf("mp4_%s", q)]; ok && url != "" {
 			result := DownloadResult{
-				URL:        url,
-				Title:      title,
-				MediaType:  MediaTypeVideo,
-				Quality:    s.parseQuality(q),
-				Extension:  "mp4",
-				Duration:   video.Duration,
-				Thumbnail:  thumbnail,
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s_%s.mp4", title, q),
+				URL:       url,
+				Title:     title,
+				MediaType: MediaTypeVideo,
+				Quality:   s.parseQuality(q),
+				Extension: "mp4",
+				Duration:  video.Duration,
+				Thumbnail: thumbnail,
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s_%s.mp4", title, q),
 				Metadata: map[string]string{
-					"service":   "vk",
-					"video_id":  fmt.Sprintf("%d", video.ID),
-					"owner_id":  fmt.Sprintf("%d", video.OwnerID),
-					"quality":   q,
+					"service":  "vk",
+					"video_id": fmt.Sprintf("%d", video.ID),
+					"owner_id": fmt.Sprintf("%d", video.OwnerID),
+					"quality":  q,
 				},
 			}
 			results = append(results, result)
@@ -110,15 +110,15 @@ func (s *VKService) Extract(ctx context.Context, urlStr string) ([]DownloadResul
 
 	if len(results) == 0 && video.Player != "" {
 		result := DownloadResult{
-			URL:        video.Player,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    QualityBest,
-			Extension:  "html",
-			Duration:   video.Duration,
-			Thumbnail:  thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.html", title),
+			URL:       video.Player,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   QualityBest,
+			Extension: "html",
+			Duration:  video.Duration,
+			Thumbnail: thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.html", title),
 			Metadata: map[string]string{
 				"service":  "vk",
 				"video_id": fmt.Sprintf("%d", video.ID),

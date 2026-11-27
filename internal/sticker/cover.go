@@ -8,8 +8,6 @@ import (
 	"math"
 )
 
-// renderAudioCoverPNG builds a crisp 512x512 transparent-margin sound card PNG
-// driven by the actual 64-byte audio waveform so audio-only inputs have a visual WebP sticker.
 func renderAudioCoverPNG(waveform []byte) ([]byte, error) {
 	const size = 512
 	const pad = 28
@@ -17,9 +15,9 @@ func renderAudioCoverPNG(waveform []byte) ([]byte, error) {
 
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
 
-	bg := color.NRGBA{R: 15, G: 23, B: 42, A: 245}       // slate-900
-	border := color.NRGBA{R: 37, G: 211, B: 102, A: 180} // WhatsApp emerald accent
-	inner := color.NRGBA{R: 30, G: 41, B: 59, A: 255}    // slate-800
+	bg := color.NRGBA{R: 15, G: 23, B: 42, A: 245}
+	border := color.NRGBA{R: 37, G: 211, B: 102, A: 180}
+	inner := color.NRGBA{R: 30, G: 41, B: 59, A: 255}
 
 	for y := pad; y < size-pad; y++ {
 		for x := pad; x < size-pad; x++ {
@@ -31,10 +29,10 @@ func renderAudioCoverPNG(waveform []byte) ([]byte, error) {
 			if dist > -3.0 {
 				c = border
 			} else if y < pad+140 && dist < -4.0 {
-				// Subtle top panel tint
+
 				c = color.NRGBA{R: 20, G: 31, B: 53, A: 248}
 			}
-			// Anti-aliased outer edge
+
 			if dist > -0.5 {
 				alpha := uint8(math.Round(float64(c.A) * (0.5 - dist)))
 				c.A = alpha
@@ -43,12 +41,10 @@ func renderAudioCoverPNG(waveform []byte) ([]byte, error) {
 		}
 	}
 
-	// Draw center speaker badge circle + glyph
 	drawCircle(img, 256, 134, 48, inner)
 	drawCircleRing(img, 256, 134, 48, 3, color.NRGBA{R: 37, G: 211, B: 102, A: 230})
 	drawSpeakerGlyph(img, 256, 134, color.NRGBA{R: 248, G: 250, B: 252, A: 255})
 
-	// Draw 32 waveform bars centered in lower half
 	const bars = 32
 	const barW = 8
 	const gap = 4
@@ -147,7 +143,7 @@ func drawCircleRing(img *image.NRGBA, cx, cy, r, thickness int, c color.NRGBA) {
 }
 
 func drawSpeakerGlyph(img *image.NRGBA, cx, cy int, c color.NRGBA) {
-	// Speaker cone (left box + trapezoid)
+
 	fillRoundedBar(img, cx-22, cy-10, cx-10, cy+10, 2, c)
 	for x := cx - 10; x <= cx+2; x++ {
 		span := 10 + ((x - (cx - 10)) * 10 / 12)
@@ -155,7 +151,7 @@ func drawSpeakerGlyph(img *image.NRGBA, cx, cy int, c color.NRGBA) {
 			img.SetNRGBA(x, y, c)
 		}
 	}
-	// Sound waves (two arcs on right)
+
 	for _, arcR := range []float64{13, 21} {
 		for y := cy - int(arcR) - 2; y <= cy+int(arcR)+2; y++ {
 			for x := cx + 4; x <= cx+int(arcR)+4; x++ {

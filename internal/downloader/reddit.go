@@ -62,7 +62,7 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 						Status string `json:"status"`
 						E      string `json:"e"`
 						S      struct {
-							U string `json:"u"`
+							U   string `json:"u"`
 							GIF string `json:"gif"`
 							MP4 string `json:"mp4"`
 						} `json:"s"`
@@ -94,14 +94,14 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 	if post.IsVideo && post.SecureMedia.RedditVideo.FallbackURL != "" {
 		video := post.SecureMedia.RedditVideo
 		result := DownloadResult{
-			URL:        video.FallbackURL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    s.parseQuality(video.Height),
-			Extension:  "mp4",
-			Duration:   video.Duration,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.mp4", sanitizeFilename(title)),
+			URL:       video.FallbackURL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   s.parseQuality(video.Height),
+			Extension: "mp4",
+			Duration:  video.Duration,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.mp4", sanitizeFilename(title)),
 			Metadata: map[string]string{
 				"service":   "reddit",
 				"post_id":   post.ID,
@@ -120,13 +120,13 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 		if meta.Status == "valid" {
 			if meta.S.MP4 != "" {
 				result := DownloadResult{
-					URL:        meta.S.MP4,
-					Title:      title,
-					MediaType:  MediaTypeVideo,
-					Quality:    QualityBest,
-					Extension:  "mp4",
-					DirectURL:  true,
-					Filename:   fmt.Sprintf("%s_gallery.mp4", sanitizeFilename(title)),
+					URL:       meta.S.MP4,
+					Title:     title,
+					MediaType: MediaTypeVideo,
+					Quality:   QualityBest,
+					Extension: "mp4",
+					DirectURL: true,
+					Filename:  fmt.Sprintf("%s_gallery.mp4", sanitizeFilename(title)),
 					Metadata: map[string]string{
 						"service":   "reddit",
 						"post_id":   post.ID,
@@ -137,13 +137,13 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 				results = append(results, result)
 			} else if meta.S.GIF != "" {
 				result := DownloadResult{
-					URL:        meta.S.GIF,
-					Title:      title,
-					MediaType:  MediaTypeImage,
-					Quality:    QualityBest,
-					Extension:  "gif",
-					DirectURL:  true,
-					Filename:   fmt.Sprintf("%s.gif", sanitizeFilename(title)),
+					URL:       meta.S.GIF,
+					Title:     title,
+					MediaType: MediaTypeImage,
+					Quality:   QualityBest,
+					Extension: "gif",
+					DirectURL: true,
+					Filename:  fmt.Sprintf("%s.gif", sanitizeFilename(title)),
 					Metadata: map[string]string{
 						"service":   "reddit",
 						"post_id":   post.ID,
@@ -154,13 +154,13 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 				results = append(results, result)
 			} else if len(meta.P) > 0 {
 				result := DownloadResult{
-					URL:        meta.P[0].U,
-					Title:      title,
-					MediaType:  MediaTypeImage,
-					Quality:    QualityBest,
-					Extension:  "jpg",
-					DirectURL:  true,
-					Filename:   fmt.Sprintf("%s.jpg", sanitizeFilename(title)),
+					URL:       meta.P[0].U,
+					Title:     title,
+					MediaType: MediaTypeImage,
+					Quality:   QualityBest,
+					Extension: "jpg",
+					DirectURL: true,
+					Filename:  fmt.Sprintf("%s.jpg", sanitizeFilename(title)),
 					Metadata: map[string]string{
 						"service":   "reddit",
 						"post_id":   post.ID,
@@ -175,12 +175,12 @@ func (s *RedditService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 
 	if len(results) == 0 && post.URL != "" {
 		result := DownloadResult{
-			URL:        post.URL,
-			Title:      title,
-			MediaType:  MediaTypeMixed,
-			Quality:    QualityBest,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s", sanitizeFilename(title)),
+			URL:       post.URL,
+			Title:     title,
+			MediaType: MediaTypeMixed,
+			Quality:   QualityBest,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s", sanitizeFilename(title)),
 			Metadata: map[string]string{
 				"service":   "reddit",
 				"post_id":   post.ID,

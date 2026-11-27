@@ -19,9 +19,6 @@ func OpenStore(ctx context.Context, driver, address string) (*sqlstore.Container
 	return container, err
 }
 
-// OpenStoreWithDB opens the SQL database, upgrades the whatsmeow schema, and returns
-// both the session Container and the underlying *sql.DB so feature stores can share it.
-// Closing the returned Container closes the underlying *sql.DB.
 func OpenStoreWithDB(ctx context.Context, driver, address string) (*sqlstore.Container, *sql.DB, error) {
 	if driver == "sqlite3" && strings.HasPrefix(address, "file:") {
 		path := strings.TrimPrefix(strings.SplitN(address, "?", 2)[0], "file:")
@@ -39,8 +36,7 @@ func OpenStoreWithDB(ctx context.Context, driver, address string) (*sqlstore.Con
 
 	switch driver {
 	case "sqlite3":
-		// Keep a single pooled connection so concurrent writes across whatsmeow and
-		// moderation.SQLStore never contend with SQLITE_BUSY.
+
 		db.SetMaxOpenConns(1)
 		db.SetMaxIdleConns(1)
 	case "pgx":

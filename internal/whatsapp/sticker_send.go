@@ -24,7 +24,7 @@ import (
 )
 
 func (b *Bot) encodeSticker(ctx context.Context, sticker command.Sticker, source *events.Message) (*waE2E.Message, error) {
-	// True WhatsApp Sound Sticker (WebP + nested Opus audio inside AudioStickerMessage field 134).
+
 	if sticker.Audio && len(sticker.AudioData) > 0 {
 		stickerUp, err := b.client.Upload(ctx, sticker.Data, whatsmeow.MediaImage)
 		if err != nil {
@@ -48,7 +48,6 @@ func (b *Bot) encodeSticker(ctx context.Context, sticker command.Sticker, source
 		return buildSoundStickerMessage(sticker, stickerUp, audioUp, exifOffset, firstFrameSidecar, source)
 	}
 
-	// Legacy standalone audio-only fallback when no WebP payload is attached.
 	if sticker.Audio {
 		upload, err := b.client.Upload(ctx, sticker.Data, whatsmeow.MediaAudio)
 		if err != nil {
@@ -57,7 +56,6 @@ func (b *Bot) encodeSticker(ctx context.Context, sticker command.Sticker, source
 		return buildAudioOnlyMessage(sticker, upload, source), nil
 	}
 
-	// Silent WebP sticker.
 	upload, err := b.client.Upload(ctx, sticker.Data, whatsmeow.MediaImage)
 	if err != nil {
 		return nil, fmt.Errorf("upload sticker media: %w", err)

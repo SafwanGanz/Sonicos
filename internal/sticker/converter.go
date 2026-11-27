@@ -55,7 +55,6 @@ func NewConverter(ffmpeg string) *Converter {
 	return &Converter{ffmpeg: ffmpeg}
 }
 
-// ToWebP converts an image or video attachment into a 512x512 WebP sticker with EXIF pack metadata.
 func (c *Converter) ToWebP(ctx context.Context, attachment command.Attachment) (command.Sticker, error) {
 	if err := validateAttachment(attachment); err != nil {
 		return command.Sticker{}, err
@@ -99,8 +98,6 @@ func (c *Converter) ToWebP(ctx context.Context, attachment command.Attachment) (
 	}, nil
 }
 
-// ToSoundSticker converts an audio or video attachment into a WhatsApp Sound Sticker
-// carrying both a 512x512 WebP (with EXIF) and a stereo Ogg/Opus track + 64-byte RMS waveform.
 func (c *Converter) ToSoundSticker(ctx context.Context, attachment command.Attachment) (command.Sticker, error) {
 	if err := validateAttachment(attachment); err != nil {
 		return command.Sticker{}, err
@@ -184,7 +181,6 @@ func (c *Converter) ToSoundSticker(ctx context.Context, attachment command.Attac
 	}, nil
 }
 
-// ToOpus transcodes an audio or video attachment into stereo Ogg/Opus with a 64-byte RMS waveform.
 func (c *Converter) ToOpus(ctx context.Context, attachment command.Attachment) (command.Sticker, error) {
 	if err := validateAttachment(attachment); err != nil {
 		return command.Sticker{}, err
@@ -262,7 +258,7 @@ func (c *Converter) encodeOpusWithWaveform(ctx context.Context, inputPath string
 	}
 	waveform, err := c.computeWaveform(ctx, outputPath)
 	if err != nil {
-		// Non-fatal fallback to flat waveform so audio still plays cleanly
+
 		waveform = make([]byte, 64)
 		for i := range waveform {
 			waveform[i] = 52
@@ -541,7 +537,7 @@ func (c *Converter) duration(ctx context.Context, path string, maxSeconds int) (
 		return 0, fmt.Errorf("converted audio duration %.2fs is outside the supported range", seconds)
 	}
 	if seconds > float64(maxSeconds) {
-		// Opus frame alignment/lookahead can push a -t trimmed stream slightly past maxSeconds (e.g. +0.0065s).
+
 		if seconds <= float64(maxSeconds)+0.5 {
 			return uint32(maxSeconds), nil
 		}

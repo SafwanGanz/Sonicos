@@ -49,10 +49,10 @@ func (s *InstagramService) Extract(ctx context.Context, urlStr string) ([]Downlo
 			Code          string `json:"code"`
 			MediaType     int    `json:"media_type"`
 			VideoVersions []struct {
-				URL      string `json:"url"`
-				Width    int    `json:"width"`
-				Height   int    `json:"height"`
-				Type     int    `json:"type"`
+				URL    string `json:"url"`
+				Width  int    `json:"width"`
+				Height int    `json:"height"`
+				Type   int    `json:"type"`
 			} `json:"video_versions"`
 			ImageVersions2 struct {
 				Candidates []struct {
@@ -66,11 +66,11 @@ func (s *InstagramService) Extract(ctx context.Context, urlStr string) ([]Downlo
 				Text string `json:"text"`
 			} `json:"caption"`
 			CarouselMedia []struct {
-				MediaType     int    `json:"media_type"`
+				MediaType     int `json:"media_type"`
 				VideoVersions []struct {
-					URL      string `json:"url"`
-					Width    int    `json:"width"`
-					Height   int    `json:"height"`
+					URL    string `json:"url"`
+					Width  int    `json:"width"`
+					Height int    `json:"height"`
 				} `json:"video_versions"`
 				ImageVersions2 struct {
 					Candidates []struct {
@@ -98,10 +98,10 @@ func (s *InstagramService) Extract(ctx context.Context, urlStr string) ([]Downlo
 
 func (s *InstagramService) tryGraphQL(ctx context.Context, shortcode string) ([]DownloadResult, error) {
 	variables := map[string]interface{}{
-		"shortcode": shortcode,
-		"child_comment_count": 3,
-		"fetch_comment_count": 40,
-		"parent_comment_count": 24,
+		"shortcode":             shortcode,
+		"child_comment_count":   3,
+		"fetch_comment_count":   40,
+		"parent_comment_count":  24,
 		"has_threaded_comments": true,
 	}
 
@@ -121,25 +121,25 @@ func (s *InstagramService) tryGraphQL(ctx context.Context, shortcode string) ([]
 	var data struct {
 		Data struct {
 			ShortcodeMedia struct {
-				ID              string `json:"id"`
-				Shortcode       string `json:"shortcode"`
-				Typename        string `json:"__typename"`
-				IsVideo         bool   `json:"is_video"`
-				VideoURL        string `json:"video_url"`
-				DisplayURL      string `json:"display_url"`
-				VideoDuration   float64 `json:"video_duration"`
-				Dimensions      struct {
+				ID            string  `json:"id"`
+				Shortcode     string  `json:"shortcode"`
+				Typename      string  `json:"__typename"`
+				IsVideo       bool    `json:"is_video"`
+				VideoURL      string  `json:"video_url"`
+				DisplayURL    string  `json:"display_url"`
+				VideoDuration float64 `json:"video_duration"`
+				Dimensions    struct {
 					Width  int `json:"width"`
 					Height int `json:"height"`
 				} `json:"dimensions"`
 				EdgeSidecarToChildren struct {
 					Edges []struct {
 						Node struct {
-							ID            string `json:"id"`
-							Typename      string `json:"__typename"`
-							IsVideo       bool   `json:"is_video"`
-							VideoURL      string `json:"video_url"`
-							DisplayURL    string `json:"display_url"`
+							ID            string  `json:"id"`
+							Typename      string  `json:"__typename"`
+							IsVideo       bool    `json:"is_video"`
+							VideoURL      string  `json:"video_url"`
+							DisplayURL    string  `json:"display_url"`
 							VideoDuration float64 `json:"video_duration"`
 							Dimensions    struct {
 								Width  int `json:"width"`
@@ -170,9 +170,9 @@ func (s *InstagramService) tryGraphQL(ctx context.Context, shortcode string) ([]
 	var results []DownloadResult
 
 	baseResult := DownloadResult{
-		Title:      media.Owner.Username + "_" + media.Shortcode,
-		DirectURL:  true,
-		Metadata:   map[string]string{"service": "instagram"},
+		Title:     media.Owner.Username + "_" + media.Shortcode,
+		DirectURL: true,
+		Metadata:  map[string]string{"service": "instagram"},
 	}
 
 	if media.Typename == "GraphSidecar" {
@@ -228,10 +228,10 @@ func (s *InstagramService) parseItems(items []struct {
 	Code          string `json:"code"`
 	MediaType     int    `json:"media_type"`
 	VideoVersions []struct {
-		URL      string `json:"url"`
-		Width    int    `json:"width"`
-		Height   int    `json:"height"`
-		Type     int    `json:"type"`
+		URL    string `json:"url"`
+		Width  int    `json:"width"`
+		Height int    `json:"height"`
+		Type   int    `json:"type"`
 	} `json:"video_versions"`
 	ImageVersions2 struct {
 		Candidates []struct {
@@ -245,11 +245,11 @@ func (s *InstagramService) parseItems(items []struct {
 		Text string `json:"text"`
 	} `json:"caption"`
 	CarouselMedia []struct {
-		MediaType     int    `json:"media_type"`
+		MediaType     int `json:"media_type"`
 		VideoVersions []struct {
-			URL      string `json:"url"`
-			Width    int    `json:"width"`
-			Height   int    `json:"height"`
+			URL    string `json:"url"`
+			Width  int    `json:"width"`
+			Height int    `json:"height"`
 		} `json:"video_versions"`
 		ImageVersions2 struct {
 			Candidates []struct {
@@ -267,9 +267,9 @@ func (s *InstagramService) parseItems(items []struct {
 		if len(item.CarouselMedia) > 0 {
 			for i, media := range item.CarouselMedia {
 				result := DownloadResult{
-					Title:      fmt.Sprintf("%s_%d", shortcode, i),
-					DirectURL:  true,
-					Metadata:   map[string]string{"service": "instagram"},
+					Title:     fmt.Sprintf("%s_%d", shortcode, i),
+					DirectURL: true,
+					Metadata:  map[string]string{"service": "instagram"},
 				}
 				if media.MediaType == 2 {
 					if len(media.VideoVersions) > 0 {
@@ -298,9 +298,9 @@ func (s *InstagramService) parseItems(items []struct {
 			}
 		} else if item.MediaType == 2 {
 			result := DownloadResult{
-				Title:      shortcode,
-				DirectURL:  true,
-				Metadata:   map[string]string{"service": "instagram"},
+				Title:     shortcode,
+				DirectURL: true,
+				Metadata:  map[string]string{"service": "instagram"},
 			}
 			if len(item.VideoVersions) > 0 {
 				v := item.VideoVersions[0]
@@ -316,9 +316,9 @@ func (s *InstagramService) parseItems(items []struct {
 			results = append(results, result)
 		} else {
 			result := DownloadResult{
-				Title:      shortcode,
-				DirectURL:  true,
-				Metadata:   map[string]string{"service": "instagram"},
+				Title:     shortcode,
+				DirectURL: true,
+				Metadata:  map[string]string{"service": "instagram"},
 			}
 			if len(item.ImageVersions2.Candidates) > 0 {
 				img := item.ImageVersions2.Candidates[0]

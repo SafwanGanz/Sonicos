@@ -38,9 +38,9 @@ func (s *DailymotionService) Extract(ctx context.Context, urlStr string) ([]Down
 	defer resp.Body.Close()
 
 	var data struct {
-		Title       string `json:"title"`
-		Duration    int    `json:"duration"`
-		Owner       struct {
+		Title    string `json:"title"`
+		Duration int    `json:"duration"`
+		Owner    struct {
 			Username string `json:"username"`
 		} `json:"owner"`
 		Thumbnails []struct {
@@ -48,7 +48,7 @@ func (s *DailymotionService) Extract(ctx context.Context, urlStr string) ([]Down
 		} `json:"thumbnails"`
 		Qualities map[string]struct {
 			URLs []string `json:"urls"`
-			Type string `json:"type"`
+			Type string   `json:"type"`
 		} `json:"qualities"`
 	}
 
@@ -64,24 +64,24 @@ func (s *DailymotionService) Extract(ctx context.Context, urlStr string) ([]Down
 
 	var results []DownloadResult
 	qualityOrder := []string{"1080", "720", "480", "380", "240", "144", "auto"}
-	
+
 	for _, q := range qualityOrder {
 		if qual, ok := data.Qualities[q]; ok && len(qual.URLs) > 0 {
 			result := DownloadResult{
-				URL:        qual.URLs[0],
-				Title:      title,
-				MediaType:  MediaTypeVideo,
-				Quality:    s.parseQualityLabel(q),
-				Extension:  "mp4",
-				Duration:   data.Duration,
-				Thumbnail:  thumbnail,
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s_%s.mp4", title, q),
+				URL:       qual.URLs[0],
+				Title:     title,
+				MediaType: MediaTypeVideo,
+				Quality:   s.parseQualityLabel(q),
+				Extension: "mp4",
+				Duration:  data.Duration,
+				Thumbnail: thumbnail,
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s_%s.mp4", title, q),
 				Metadata: map[string]string{
-					"service":   "dailymotion",
-					"video_id":  videoID,
-					"owner":     data.Owner.Username,
-					"quality":   q,
+					"service":  "dailymotion",
+					"video_id": videoID,
+					"owner":    data.Owner.Username,
+					"quality":  q,
 				},
 			}
 			results = append(results, result)

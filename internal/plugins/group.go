@@ -11,11 +11,10 @@ import (
 
 func init() {
 	for _, cmd := range []command.Command{
-		// Member commands (available to all group participants)
+
 		{Name: "groupinfo", Aliases: []string{"ginfo", "gi"}, Category: "Group (Members)", Description: "Show group metadata and settings", Handler: groupInfo},
 		{Name: "admins", Aliases: []string{"staff"}, Category: "Group (Members)", Description: "List and mention all group admins", Handler: listAdmins},
 
-		// Admin commands (require group admin)
 		{Name: "add", Category: "Group (Admins)", Description: "Add member(s) by phone number", Handler: addMembers},
 		{Name: "addmode", Category: "Group (Admins)", Description: "Set who can add members: admins or all", Handler: setMemberAddMode},
 		{Name: "approval", Category: "Group (Admins)", Description: "Toggle join approval mode: on or off", Handler: setJoinApproval},

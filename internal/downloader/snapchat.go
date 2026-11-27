@@ -40,17 +40,17 @@ func (s *SnapchatService) Extract(ctx context.Context, urlStr string) ([]Downloa
 
 	var data struct {
 		Story struct {
-			ID        string `json:"id"`
-			Title     string `json:"title"`
-			Author    struct {
+			ID     string `json:"id"`
+			Title  string `json:"title"`
+			Author struct {
 				Username string `json:"username"`
 			} `json:"author"`
 			SnapList []struct {
-				ID          string `json:"id"`
-				MediaURL    string `json:"media_url"`
-				MediaType   string `json:"media_type"`
-				Duration    int    `json:"duration"`
-				Thumbnail   string `json:"thumbnail_url"`
+				ID        string `json:"id"`
+				MediaURL  string `json:"media_url"`
+				MediaType string `json:"media_type"`
+				Duration  int    `json:"duration"`
+				Thumbnail string `json:"thumbnail_url"`
 			} `json:"snap_list"`
 		} `json:"story"`
 	}
@@ -82,20 +82,20 @@ func (s *SnapchatService) Extract(ctx context.Context, urlStr string) ([]Downloa
 			ext = "jpg"
 		}
 		result := DownloadResult{
-			URL:        snap.MediaURL,
-			Title:      title,
-			MediaType:  mediaType,
-			Quality:    QualityBest,
-			Extension:  ext,
-			Duration:   snap.Duration,
-			Thumbnail:  snap.Thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.%s", title, snap.ID, ext),
+			URL:       snap.MediaURL,
+			Title:     title,
+			MediaType: mediaType,
+			Quality:   QualityBest,
+			Extension: ext,
+			Duration:  snap.Duration,
+			Thumbnail: snap.Thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.%s", title, snap.ID, ext),
 			Metadata: map[string]string{
-				"service":    "snapchat",
-				"story_id":   itemID,
-				"snap_id":    snap.ID,
-				"author":     data.Story.Author.Username,
+				"service":  "snapchat",
+				"story_id": itemID,
+				"snap_id":  snap.ID,
+				"author":   data.Story.Author.Username,
 			},
 		}
 		results = append(results, result)

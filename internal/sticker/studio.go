@@ -22,15 +22,12 @@ const (
 )
 
 var (
-	// ErrStaticSilentSticker indicates the input sticker has neither animation frames nor embedded audio.
 	ErrStaticSilentSticker = errors.New("sticker is static and has no audio")
 
 	meanVolRe = regexp.MustCompile(`mean_volume:\s*(-?[0-9]+(?:\.[0-9]+)?)\s*dB`)
 	maxVolRe  = regexp.MustCompile(`max_volume:\s*(-?[0-9]+(?:\.[0-9]+)?)\s*dB`)
 )
 
-// DubSoundSticker combines a separate visual attachment (image, video, or sticker)
-// and an audio attachment (audio or video) into a WhatsApp Sound Sticker.
 func (c *Converter) DubSoundSticker(ctx context.Context, visual, audio command.Attachment) (command.Sticker, error) {
 	if err := validateAttachment(visual); err != nil {
 		return command.Sticker{}, fmt.Errorf("visual: %w", err)
@@ -100,7 +97,7 @@ func (c *Converter) DubSoundSticker(ctx context.Context, visual, audio command.A
 				tryInject(trimmed)
 			}
 		}
-		// ffmpeg's libavcodec webp decoder does not support animated WebP (ANIM/ANMF); fail cleanly rather than crashing in ffmpeg.
+
 		if len(webpData) == 0 && isAnimSticker {
 			return command.Sticker{}, errors.New("animated WebP sticker exceeds 500 KiB limit even after trimming frames")
 		}
@@ -148,7 +145,6 @@ func (c *Converter) DubSoundSticker(ctx context.Context, visual, audio command.A
 	}, nil
 }
 
-// RebrandSticker rewrites the WebP EXIF pack metadata on an existing sticker or sound sticker.
 func (c *Converter) RebrandSticker(ctx context.Context, webpData, audioData []byte, packName, author string, emojis []string) (command.Sticker, error) {
 	if len(webpData) == 0 {
 		return command.Sticker{}, errors.New("sticker data is empty")
@@ -215,7 +211,6 @@ func (c *Converter) RebrandSticker(ctx context.Context, webpData, audioData []by
 	return st, nil
 }
 
-// StickerToPNG renders the first frame of a WebP sticker to a PNG image.
 func (c *Converter) StickerToPNG(ctx context.Context, webpData []byte) ([]byte, error) {
 	if len(webpData) == 0 {
 		return nil, errors.New("sticker data is empty")
@@ -242,8 +237,6 @@ func (c *Converter) StickerToPNG(ctx context.Context, webpData []byte) ([]byte, 
 	return data, nil
 }
 
-// StickerToMP4 converts an animated WebP sticker or WhatsApp Sound Sticker (static or animated)
-// into a square 512x512 H.264/AAC MP4 video suitable for WhatsApp VideoMessage playback.
 func (c *Converter) StickerToMP4(ctx context.Context, webpData, audioData []byte) (command.VideoReply, error) {
 	if len(webpData) == 0 {
 		return command.VideoReply{}, errors.New("sticker data is empty")
@@ -322,7 +315,7 @@ func (c *Converter) StickerToMP4(ctx context.Context, webpData, audioData []byte
 			return command.VideoReply{}, fmt.Errorf("encode animated sticker to mp4: %w", err)
 		}
 
-	default: // isAnimated && hasAudio
+	default:
 		midPath, midCleanup, err := tempPath(".mp4")
 		if err != nil {
 			return command.VideoReply{}, err
@@ -420,7 +413,6 @@ func clampDuration(v, minSec, maxSec float64) float64 {
 	return v
 }
 
-// ExtractAudio converts an audio or video attachment into playable stereo Ogg/Opus audio.
 func (c *Converter) ExtractAudio(ctx context.Context, attachment command.Attachment) (command.AudioReply, error) {
 	if err := validateAttachment(attachment); err != nil {
 		return command.AudioReply{}, err
@@ -455,7 +447,6 @@ func (c *Converter) ExtractAudio(ctx context.Context, attachment command.Attachm
 	}, nil
 }
 
-// ToVideoNote converts an image or video attachment into a 384x384 circular WhatsApp video note (PTV).
 func (c *Converter) ToVideoNote(ctx context.Context, attachment command.Attachment) (command.VideoNoteReply, error) {
 	if err := validateAttachment(attachment); err != nil {
 		return command.VideoNoteReply{}, err
@@ -570,7 +561,6 @@ func (c *Converter) ToVideoNote(ctx context.Context, attachment command.Attachme
 	}, nil
 }
 
-// MeasureLoudness measures mean and peak volume (in dBFS) of an audio buffer using ffmpeg volumedetect.
 func (c *Converter) MeasureLoudness(ctx context.Context, audioData []byte) (meanDB float64, maxDB float64, err error) {
 	if len(audioData) == 0 {
 		return -91, -91, errors.New("audio data is empty")

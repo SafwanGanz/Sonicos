@@ -51,11 +51,11 @@ func downloadMP4Handler(ctx context.Context, message command.Message, args []str
 
 	return reply(ctx, command.Reply{
 		Video: &command.VideoReply{
-			Data:     data,
-			Caption:  caption,
-			Seconds:  0,
-			Width:    0,
-			Height:   0,
+			Data:    data,
+			Caption: caption,
+			Seconds: 0,
+			Width:   0,
+			Height:  0,
 		},
 	})
 }
@@ -108,7 +108,7 @@ func downloadYTDLP(ctx context.Context, url string, audioOnly bool) ([]byte, str
 			url,
 		}
 	} else {
-		// Simpler format selection - try to get MP4 directly without heavy transcoding
+
 		ytArgs = []string{
 			"-f", "best[ext=mp4][height<=720][vcodec^=avc1]/best[ext=mp4]/best[height<=720]/best",
 			"--recode-video", "mp4",
@@ -123,7 +123,6 @@ func downloadYTDLP(ctx context.Context, url string, audioOnly bool) ([]byte, str
 		}
 	}
 
-	// Shorter timeout - 90 seconds max
 	dlCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 

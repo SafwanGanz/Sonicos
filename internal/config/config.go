@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -26,6 +27,23 @@ type Config struct {
 	CloudEphemeral      bool
 	AutoApproveRequests bool
 	BlockedNumbers      []string
+	OwnerJIDs           []string
+	AIAPIKey            string
+	AIBaseURL           string
+	AIModel             string
+	AISTTModel          string
+
+	GeminiWeb2APIEnabled    bool
+	GeminiWeb2APIBaseURL    string
+	GeminiWeb2APIKey        string
+	GeminiWeb2APIModel      string
+	GeminiWeb2APIFallback   string
+	GeminiWeb2APITimeout    time.Duration
+	GeminiWeb2APIMaxRetries int
+	GeminiAPIKey            string
+	GeminiSTTModel          string
+	GeminiSTTFallbackModel  string
+	EdgeTTSVoice            string
 }
 
 func Load() (Config, error) {
@@ -55,7 +73,7 @@ func Load() (Config, error) {
 	redisURL := rawRedis
 	redisConfigured := rawRedis != ""
 	if redisURL == "" && platform == "" {
-		// Preserve local PC/VPS default Redis architecture when not on a cloud dyno/container.
+
 		redisURL = "redis://localhost:6379/0"
 		redisConfigured = true
 	}
@@ -76,9 +94,35 @@ func Load() (Config, error) {
 		CloudEphemeral:      platform != "" && !hasVolume && dbDriver == "sqlite3",
 		AutoApproveRequests: envBool("AUTO_APPROVE_REQUESTS", false),
 		BlockedNumbers:      splitCSV(os.Getenv("BLOCKED_NUMBERS")),
+		OwnerJIDs:           mergeCSV(splitCSV(os.Getenv("BOT_OWNER_JIDS")), splitCSV(os.Getenv("BOT_OWNER"))),
+		AIAPIKey:            strings.TrimSpace(os.Getenv("AI_API_KEY")),
+		AIBaseURL:           env("AI_BASE_URL", "https://api.openai.com/v1"),
+		AIModel:             env("AI_MODEL", "gpt-4o-mini"),
+		AISTTModel:          env("AI_STT_MODEL", "whisper-1"),
+
+		GeminiWeb2APIEnabled:   envBool("GEMINI_WEB2API_ENABLED", false),
+		GeminiWeb2APIBaseURL:   env("GEMINI_WEB2API_BASE_URL", "http://127.0.0.1:8081/v1"),
+		GeminiWeb2APIKey:       strings.TrimSpace(os.Getenv("GEMINI_WEB2API_API_KEY")),
+		GeminiWeb2APIModel:     env("GEMINI_WEB2API_MODEL", ""),
+		GeminiWeb2APIFallback:  env("GEMINI_WEB2API_FALLBACK_MODEL", "gemini-3.5-flash"),
+		GeminiAPIKey:           strings.TrimSpace(os.Getenv("GEMINI_API_KEY")),
+		GeminiSTTModel:         env("GEMINI_STT_MODEL", "gemini-2.5-flash"),
+		GeminiSTTFallbackModel: env("GEMINI_STT_FALLBACK_MODEL", "gemini-flash-lite"),
+		EdgeTTSVoice:           env("EDGE_TTS_VOICE", "en-US-AriaNeural"),
 	}
 
 	var err error
+	cfg.GeminiWeb2APITimeout, err = envDuration("GEMINI_WEB2API_TIMEOUT", 180*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.GeminiWeb2APIMaxRetries, err = envInt("GEMINI_WEB2API_MAX_RETRIES", 2)
+	if err != nil {
+		return Config{}, err
+	}
+	if cfg.GeminiWeb2APIMaxRetries < 0 || cfg.GeminiWeb2APIMaxRetries > 10 {
+		return Config{}, fmt.Errorf("GEMINI_WEB2API_MAX_RETRIES must be between 0 and 10")
+	}
 	cfg.Workers, err = envInt("WORKERS", 8)
 	if err != nil {
 		return Config{}, err
@@ -155,8 +199,7 @@ func normalizePostgresURL(rawURL string) (string, error) {
 	if host != "" && !isLocalHost(host) && !q.Has("sslmode") {
 		q.Set("sslmode", "require")
 	}
-	// Supabase Transaction Pooler (port 6543 / *.pooler.supabase.com) uses PgBouncer
-	// transaction pooling where prepared statements are unsupported without simple_protocol.
+
 	if (strings.Contains(host, "pooler.supabase.com") || port == "6543") && !q.Has("default_query_exec_mode") {
 		q.Set("default_query_exec_mode", "simple_protocol")
 	}
@@ -213,6 +256,40 @@ func envBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return strings.ToLower(value) == "true" || value == "1" || strings.ToLower(value) == "yes"
+}
+
+func envDuration(key string, fallback time.Duration) (time.Duration, error) {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a duration like 180s or 3m: %w", key, err)
+	}
+	if parsed <= 0 {
+		return 0, fmt.Errorf("%s must be positive", key)
+	}
+	return parsed, nil
+}
+
+func mergeCSV(lists ...[]string) []string {
+	var out []string
+	seen := map[string]struct{}{}
+	for _, list := range lists {
+		for _, v := range list {
+			key := strings.ToLower(strings.TrimSpace(v))
+			if key == "" {
+				continue
+			}
+			if _, dup := seen[key]; dup {
+				continue
+			}
+			seen[key] = struct{}{}
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func splitCSV(raw string) []string {

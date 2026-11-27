@@ -76,7 +76,6 @@ func TestSQLStoreBannedStickersAndStrikes(t *testing.T) {
 		t.Fatalf("ListBannedStickers len=%d err=%v", len(list), err)
 	}
 
-	// Ambiguous prefix ("aabb") rejects <6 chars and ambiguous 6-char if matching 2
 	if _, err := s.UnbanStickerByPrefix(ctx, group, "aabb"); err == nil {
 		t.Fatal("expected error for <6 char prefix")
 	}
@@ -87,7 +86,6 @@ func TestSQLStoreBannedStickersAndStrikes(t *testing.T) {
 		t.Fatalf("expected audio hash to also be removed with entry, ok=%v err=%v", ok, err)
 	}
 
-	// Strikes
 	for want := 1; want <= 3; want++ {
 		n, err := s.AddStrike(ctx, group, "user1")
 		if err != nil || n != want {
@@ -110,7 +108,6 @@ func TestSQLStoreShieldsSeenStagingRateAndReactionLibrary(t *testing.T) {
 	ctx := context.Background()
 	group := "1203630002@g.us"
 
-	// Shields
 	def, err := s.GetShields(ctx, group)
 	if err != nil || def.AntiLoud || def.AntiLoudDB != defaultAntiLoudDB {
 		t.Fatalf("default shields = %+v, err=%v", def, err)
@@ -129,7 +126,6 @@ func TestSQLStoreShieldsSeenStagingRateAndReactionLibrary(t *testing.T) {
 		t.Fatalf("updated shields = %+v, err=%v", sh, err)
 	}
 
-	// Seen stickers
 	if err := s.RememberSticker(ctx, group, "msg-1", command.StickerInfo{FileSHA256: "ABC", AudioSHA256: "DEF", IsAudioSticker: true}); err != nil {
 		t.Fatalf("RememberSticker: %v", err)
 	}
@@ -138,7 +134,6 @@ func TestSQLStoreShieldsSeenStagingRateAndReactionLibrary(t *testing.T) {
 		t.Fatalf("LookupSticker = %+v ok=%v err=%v", seen, ok, err)
 	}
 
-	// Rate limiting
 	for i := 1; i <= 3; i++ {
 		n, err := s.IncrementRate(ctx, group, "spam", "user1", 60)
 		if err != nil || n != i {
@@ -146,7 +141,6 @@ func TestSQLStoreShieldsSeenStagingRateAndReactionLibrary(t *testing.T) {
 		}
 	}
 
-	// Staged media
 	if err := s.SaveStage(ctx, "scope-1", command.StagedMedia{Kind: command.MediaImage, MIMEType: "image/png", Data: []byte("pngdata")}, 60); err != nil {
 		t.Fatalf("SaveStage: %v", err)
 	}
@@ -161,7 +155,6 @@ func TestSQLStoreShieldsSeenStagingRateAndReactionLibrary(t *testing.T) {
 		t.Fatal("expected cleared stage to be absent")
 	}
 
-	// Global !sreact library (including emoji variation selector normalization)
 	err = s.SaveReactionSticker(ctx, "global", "❤️", command.SavedReactionSticker{
 		Emoji: "❤️",
 		Data:  []byte("webpbytes"),
@@ -190,7 +183,6 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 	ctx := context.Background()
 	group := "1203630009@g.us"
 
-	// 1. GetShields cache hit & SetShield invalidation
 	if err := s.SetShield(ctx, group, "anti_link", "1"); err != nil {
 		t.Fatalf("SetShield: %v", err)
 	}
@@ -198,7 +190,7 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 	if err != nil || !sh.AntiLink {
 		t.Fatalf("GetShields = %+v, err=%v", sh, err)
 	}
-	// Mutate underlying DB directly to prove GetShields serves from memory cache.
+
 	if _, err := s.db.ExecContext(ctx, `UPDATE sonicos_group_shields SET value = '0' WHERE group_jid = ? AND field = 'anti_link'`, group); err != nil {
 		t.Fatalf("direct SQL update: %v", err)
 	}
@@ -206,7 +198,7 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 	if err != nil || !shCached.AntiLink {
 		t.Fatalf("expected cached AntiLink=true before invalidation, got %+v, err=%v", shCached, err)
 	}
-	// SetShield must invalidate the cache so updated DB rows are read cleanly.
+
 	if err := s.SetShield(ctx, group, "anti_spam", "1"); err != nil {
 		t.Fatalf("SetShield anti_spam: %v", err)
 	}
@@ -215,7 +207,6 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 		t.Fatalf("expected invalidated shields (AntiLink=false, AntiSpam=true), got %+v, err=%v", shRefreshed, err)
 	}
 
-	// 2. IsStickerBanned cache hit & BanSticker/UnbanSticker invalidation
 	if err := s.BanSticker(ctx, group, command.BannedSticker{FileSHA256: "feedbeef01", Reason: "test"}); err != nil {
 		t.Fatalf("BanSticker: %v", err)
 	}
@@ -235,7 +226,6 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 		t.Fatalf("expected cache invalidation to drop deleted feedbeef01, got ok:%v err:%v", ok, err)
 	}
 
-	// 3. RememberSticker updates seenCache & LookupSticker hits cache
 	if err := s.RememberSticker(ctx, group, "seen-1", command.StickerInfo{FileSHA256: "CAFEBABE"}); err != nil {
 		t.Fatalf("RememberSticker: %v", err)
 	}
@@ -247,7 +237,6 @@ func TestSQLStoreCachingInvalidationAndConcurrency(t *testing.T) {
 		t.Fatalf("expected cached seen sticker, got %+v ok=%v err=%v", st, ok, err)
 	}
 
-	// 4. Concurrent access under -race
 	var wg sync.WaitGroup
 	for i := range 8 {
 		wg.Add(1)

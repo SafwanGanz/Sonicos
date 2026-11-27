@@ -10,8 +10,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/SafwanGanz/Sonicos/internal/ai"
 	"github.com/SafwanGanz/Sonicos/internal/application"
 	"github.com/SafwanGanz/Sonicos/internal/command"
+	"github.com/SafwanGanz/Sonicos/internal/speech"
+	"github.com/SafwanGanz/Sonicos/internal/transcript"
 	"github.com/SafwanGanz/Sonicos/internal/welcome"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
@@ -55,6 +58,7 @@ type Bot struct {
 	listener   EventListener
 
 	welcomeService *welcome.Service
+	aiModeStore    command.AIModeStore
 }
 
 func (b *Bot) SetModerationStore(store command.ModerationStore) {
@@ -64,9 +68,17 @@ func (b *Bot) SetModerationStore(store command.ModerationStore) {
 	}
 }
 
-// EnableFastStore wraps the underlying whatsmeow device stores with in-memory
-// read-through caches and batched Postgres writes so cross-region database RTT
-// does not stall message decryption, sending, or prekey uploads.
+func (b *Bot) SetAIMode(store command.AIModeStore, text ai.TextProvider, stt *transcript.Engine, tts speech.Synthesizer, registry *command.Registry, logger *slog.Logger) {
+	if b == nil || store == nil || registry == nil {
+		return
+	}
+	if logger == nil {
+		logger = slog.Default()
+	}
+	b.aiModeStore = store
+	b.processor.SetAIRouter(ai.NewRouter(store, text, stt, tts, registry, logger, 2*time.Minute))
+}
+
 func (b *Bot) EnableFastStore(ctx context.Context, db *sql.DB) {
 	if b == nil || b.client == nil || b.client.Store == nil || db == nil {
 		return
@@ -74,7 +86,6 @@ func (b *Bot) EnableFastStore(ctx context.Context, db *sql.DB) {
 	b.fastStore = attachFastStore(ctx, b.client.Store, db, b.logger)
 }
 
-// FlushStore synchronously flushes any pending cached whatsmeow store writes.
 func (b *Bot) FlushStore(ctx context.Context) error {
 	if b == nil || b.fastStore == nil {
 		return nil
@@ -82,7 +93,6 @@ func (b *Bot) FlushStore(ctx context.Context) error {
 	return b.fastStore.Flush(ctx)
 }
 
-// SetEventListener registers a callback invoked on WhatsApp connection, QR, and pairing state changes.
 func (b *Bot) SetEventListener(fn EventListener) {
 	b.listenerMu.Lock()
 	b.listener = fn
@@ -248,19 +258,19 @@ func NewBot(store *sqlstore.Container, processor *application.Processor, workers
 
 	now := time.Now().UTC()
 	bot := &Bot{
-		client:               client,
-		processor:            processor,
-		groups:               newGroupServiceCache(client),
-		audioCache:           newStickerAudioCache(),
-		workers:              workers,
-		queue:                make(chan *events.Message, queueSize),
-		logger:               logger,
-		autoApproveRequests:  autoApproveRequests,
-		blockedNumbers:       blockedNumbers,
-		qrSnap:               QRSnapshot{State: "disconnected"},
-		acceptAfter:          now,
-		awaitingConnect:      true,
-		now:                  time.Now,
+		client:              client,
+		processor:           processor,
+		groups:              newGroupServiceCache(client),
+		audioCache:          newStickerAudioCache(),
+		workers:             workers,
+		queue:               make(chan *events.Message, queueSize),
+		logger:              logger,
+		autoApproveRequests: autoApproveRequests,
+		blockedNumbers:      blockedNumbers,
+		qrSnap:              QRSnapshot{State: "disconnected"},
+		acceptAfter:         now,
+		awaitingConnect:     true,
+		now:                 time.Now,
 	}
 
 	return bot, nil
@@ -287,7 +297,6 @@ func (b *Bot) Run(ctx context.Context) error {
 		}()
 	}
 
-	// Start auto-approve join requests worker if enabled
 	if b.autoApproveRequests && len(b.blockedNumbers) > 0 {
 		workers.Add(1)
 		go func() {
@@ -405,7 +414,7 @@ func (b *Bot) handleEvent(ctx context.Context) whatsmeow.EventHandler {
 			}
 			b.markDisconnected()
 			b.pairMu.Lock()
-b.connectedAt = time.Time{}
+			b.connectedAt = time.Time{}
 			b.qrSnap = QRSnapshot{State: "disconnected"}
 			b.pairMu.Unlock()
 			b.emitEvent("status", map[string]any{"event": "logged_out", "reason": reason})
@@ -420,8 +429,6 @@ b.connectedAt = time.Time{}
 	}
 }
 
-// runAutoApproveWorker periodically checks for pending join requests in groups
-// where the bot is an admin and automatically approves them (except blocked numbers).
 func (b *Bot) runAutoApproveWorker(ctx context.Context) {
 	if b.logger != nil {
 		b.logger.Info("auto-approve join requests worker started")
@@ -458,7 +465,6 @@ func (b *Bot) processPendingJoinRequests(ctx context.Context) {
 	for _, group := range joinedGroups {
 		groupJID := group.JID.String()
 
-		// Check if bot is admin in this group
 		groupInfo, err := b.groups.GetInfo(ctx, groupJID)
 		if err != nil {
 			continue
@@ -476,7 +482,6 @@ func (b *Bot) processPendingJoinRequests(ctx context.Context) {
 			continue
 		}
 
-		// Get pending join requests
 		reqs, err := b.groups.GetJoinRequests(ctx, groupJID)
 		if err != nil || len(reqs) == 0 {
 			continue
@@ -526,7 +531,6 @@ func (b *Bot) processPendingJoinRequests(ctx context.Context) {
 	}
 }
 
-// jidUser extracts the user part from a JID
 func jidUser(jid string) string {
 	jid = strings.TrimSpace(jid)
 	if idx := strings.Index(jid, "@"); idx >= 0 {

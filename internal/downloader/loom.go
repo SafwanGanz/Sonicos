@@ -38,9 +38,9 @@ func (s *LoomService) Extract(ctx context.Context, urlStr string) ([]DownloadRes
 	defer resp.Body.Close()
 
 	var data struct {
-		URL     string `json:"url"`
-		Duration int   `json:"duration"`
-		Title   string `json:"title"`
+		URL       string `json:"url"`
+		Duration  int    `json:"duration"`
+		Title     string `json:"title"`
 		Thumbnail string `json:"thumbnail"`
 	}
 
@@ -58,18 +58,18 @@ func (s *LoomService) Extract(ctx context.Context, urlStr string) ([]DownloadRes
 	}
 
 	result := DownloadResult{
-		URL:        data.URL,
-		Title:      title,
-		MediaType:  MediaTypeVideo,
-		Quality:    QualityBest,
-		Extension:  "mp4",
-		Duration:   data.Duration,
-		Thumbnail:  data.Thumbnail,
-		DirectURL:  true,
-		Filename:   fmt.Sprintf("%s.mp4", title),
+		URL:       data.URL,
+		Title:     title,
+		MediaType: MediaTypeVideo,
+		Quality:   QualityBest,
+		Extension: "mp4",
+		Duration:  data.Duration,
+		Thumbnail: data.Thumbnail,
+		DirectURL: true,
+		Filename:  fmt.Sprintf("%s.mp4", title),
 		Metadata: map[string]string{
-			"service":   "loom",
-			"video_id":  videoID,
+			"service":  "loom",
+			"video_id": videoID,
 		},
 	}
 

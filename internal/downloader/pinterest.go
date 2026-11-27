@@ -28,7 +28,7 @@ func (s *PinterestService) Extract(ctx context.Context, urlStr string) ([]Downlo
 		return nil, fmt.Errorf("could not extract pin ID")
 	}
 
-	apiURL := fmt.Sprintf("https://www.pinterest.com/resource/PinResource/get/?source_url=/pin/%s/&data=%7B%22options%22%3A%7B%22pin%22%3A%22%s%22%7D%7D", pinID, pinID)
+	apiURL := fmt.Sprintf("https://www.pinterest.com/resource/PinResource/get/?source_url=/pin/%s/&data=%%7B%%22options%%22%%3A%%7B%%22pin%%22%%3A%%22%s%%22%%7D%%7D", pinID, pinID)
 	req := s.newRequest(ctx, "GET", apiURL)
 	req.Header.Set("Referer", "https://www.pinterest.com/")
 
@@ -95,9 +95,9 @@ func (s *PinterestService) Extract(ctx context.Context, urlStr string) ([]Downlo
 				DirectURL: true,
 				Filename:  fmt.Sprintf("%s.mp4", title),
 				Metadata: map[string]string{
-					"service":  "pinterest",
-					"pin_id":   pin.ID,
-					"author":   pin.Pinner.Username,
+					"service": "pinterest",
+					"pin_id":  pin.ID,
+					"author":  pin.Pinner.Username,
 				},
 			}
 			if v.Width > 0 && v.Height > 0 {
@@ -119,9 +119,9 @@ func (s *PinterestService) Extract(ctx context.Context, urlStr string) ([]Downlo
 				DirectURL: true,
 				Filename:  fmt.Sprintf("%s.mp4", title),
 				Metadata: map[string]string{
-					"service":  "pinterest",
-					"pin_id":   pin.ID,
-					"author":   pin.Pinner.Username,
+					"service": "pinterest",
+					"pin_id":  pin.ID,
+					"author":  pin.Pinner.Username,
 				},
 			}
 			if v.Width > 0 && v.Height > 0 {
@@ -142,9 +142,9 @@ func (s *PinterestService) Extract(ctx context.Context, urlStr string) ([]Downlo
 			DirectURL: true,
 			Filename:  fmt.Sprintf("%s.jpg", title),
 			Metadata: map[string]string{
-				"service":  "pinterest",
-				"pin_id":   pin.ID,
-				"author":   pin.Pinner.Username,
+				"service": "pinterest",
+				"pin_id":  pin.ID,
+				"author":  pin.Pinner.Username,
 			},
 		}
 		results = append(results, result)

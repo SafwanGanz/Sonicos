@@ -57,7 +57,7 @@ func (r *ttsRegistry) voices24h(ctx context.Context) ([]ttsVoice, error) {
 
 	voices, err := loadVoicesFromCLI(ctx)
 	if err != nil {
-		// Don't poison the 24h cache on transient CLI failures; keep any prior voices.
+
 		return r.voices, err
 	}
 	r.voices = voices
@@ -526,7 +526,6 @@ func synthesizeTTS(ctx context.Context, text, voiceShortName string) ([]byte, er
 	tmpFile := filepath.Join(os.TempDir(), fmt.Sprintf("tts_%d.mp3", id))
 	defer os.Remove(tmpFile)
 
-	// Pass text via --file so strings starting with '-' are never parsed as CLI flags.
 	cmd := exec.CommandContext(ctx, bin,
 		"--voice", voiceShortName,
 		"--file", txtFile,
@@ -653,7 +652,7 @@ func generateTTSWaveform(ctx context.Context, ffmpeg, path string, points int) [
 		if idx >= len(levels) {
 			idx = len(levels) - 1
 		}
-		wave[i] = byte((levels[idx]-minDB) / rng * 100)
+		wave[i] = byte((levels[idx] - minDB) / rng * 100)
 	}
 	return wave
 }

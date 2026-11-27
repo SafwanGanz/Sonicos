@@ -10,11 +10,11 @@ import (
 )
 
 type BaseService struct {
-	name       string
-	patterns   []*regexp.Regexp
-	client     *HTTPClient
-	userAgent  string
-	referer    string
+	name      string
+	patterns  []*regexp.Regexp
+	client    *HTTPClient
+	userAgent string
+	referer   string
 }
 
 func NewBaseService(name string, patterns []string, client *HTTPClient) *BaseService {
@@ -30,7 +30,7 @@ func NewBaseService(name string, patterns []string, client *HTTPClient) *BaseSer
 	}
 }
 
-func (s *BaseService) Name() string       { return s.name }
+func (s *BaseService) Name() string               { return s.name }
 func (s *BaseService) Patterns() []*regexp.Regexp { return s.patterns }
 
 func (s *BaseService) newRequest(ctx context.Context, method, urlStr string) *http.Request {

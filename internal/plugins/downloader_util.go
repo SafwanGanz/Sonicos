@@ -12,10 +12,10 @@ import (
 	"github.com/SafwanGanz/Sonicos/internal/downloader"
 )
 
-const maxFileSize = 25 << 20 // 25MB WhatsApp limit
+const maxFileSize = 25 << 20
 
 func downloadMedia(ctx context.Context, dl *downloader.Downloader, mediaURL string) ([]byte, string, error) {
-	// Check if it's a YouTube signed URL that needs special handling
+
 	if strings.Contains(mediaURL, "googlevideo.com") || strings.Contains(mediaURL, "youtube.com") {
 		return downloadWithYTDLP(ctx, mediaURL)
 	}
@@ -68,7 +68,6 @@ func downloadWithYTDLP(ctx context.Context, mediaURL string) ([]byte, string, er
 
 	outputTemplate := filepath.Join(tmpDir, "%(title)s.%(ext)s")
 
-	// Try to detect if it's audio or video from URL
 	isAudio := strings.Contains(mediaURL, "audio") || strings.Contains(mediaURL, "m4a") || strings.Contains(mediaURL, "opus")
 
 	var ytArgs []string
@@ -85,7 +84,7 @@ func downloadWithYTDLP(ctx context.Context, mediaURL string) ([]byte, string, er
 			mediaURL,
 		}
 	} else {
-		// Video: Force re-encode to H.264/AAC with proper MP4 container for WhatsApp
+
 		ytArgs = []string{
 			"-f", "bestvideo+bestaudio/best",
 			"-S", "vcodec:h264,acodec:aac,res:720,filesize",
@@ -108,7 +107,7 @@ func downloadWithYTDLP(ctx context.Context, mediaURL string) ([]byte, string, er
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// Fallback for video
+
 		if !isAudio && strings.Contains(string(output), "Requested format is not available") {
 			return downloadWithYTDLPFallback(dlCtx, tmpDir, mediaURL)
 		}

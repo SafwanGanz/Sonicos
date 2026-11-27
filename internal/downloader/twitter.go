@@ -39,21 +39,21 @@ func (s *TwitterService) Extract(ctx context.Context, urlStr string) ([]Download
 	defer resp.Body.Close()
 
 	var data struct {
-		ID            string `json:"id_str"`
-		FullText      string `json:"full_text"`
-		User          struct {
+		ID       string `json:"id_str"`
+		FullText string `json:"full_text"`
+		User     struct {
 			ScreenName string `json:"screen_name"`
 			Name       string `json:"name"`
 		} `json:"user"`
 		ExtendedEntities struct {
 			Media []struct {
-				ID          string `json:"id_str"`
-				Type        string `json:"type"`
-				VideoInfo   struct {
+				ID        string `json:"id_str"`
+				Type      string `json:"type"`
+				VideoInfo struct {
 					Variants []struct {
-						URL          string `json:"url"`
-						ContentType  string `json:"content_type"`
-						Bitrate      int    `json:"bitrate"`
+						URL         string `json:"url"`
+						ContentType string `json:"content_type"`
+						Bitrate     int    `json:"bitrate"`
 					} `json:"variants"`
 				} `json:"video_info"`
 				MediaURLHTTPS string `json:"media_url_https"`
@@ -62,9 +62,9 @@ func (s *TwitterService) Extract(ctx context.Context, urlStr string) ([]Download
 		} `json:"extended_entities"`
 		Entities struct {
 			Media []struct {
-				ID          string `json:"id_str"`
-				Type        string `json:"type"`
-				VideoInfo   struct {
+				ID        string `json:"id_str"`
+				Type      string `json:"type"`
+				VideoInfo struct {
 					Variants []struct {
 						URL         string `json:"url"`
 						ContentType string `json:"content_type"`
@@ -121,9 +121,9 @@ func (s *TwitterService) Extract(ctx context.Context, urlStr string) ([]Download
 					DirectURL: true,
 					Filename:  fmt.Sprintf("%s_%s.mp4", data.User.ScreenName, tweetID),
 					Metadata: map[string]string{
-						"service":    "twitter",
-						"tweet_id":   tweetID,
-						"author":     data.User.ScreenName,
+						"service":  "twitter",
+						"tweet_id": tweetID,
+						"author":   data.User.ScreenName,
 					},
 				}
 				results = append(results, result)

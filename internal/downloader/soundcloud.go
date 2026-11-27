@@ -25,7 +25,7 @@ func NewSoundCloudService(client *HTTPClient) *SoundCloudService {
 func (s *SoundCloudService) Extract(ctx context.Context, urlStr string) ([]DownloadResult, error) {
 	urlStr = s.cleanURL(urlStr)
 	resolveURL := fmt.Sprintf("https://api-v2.soundcloud.com/resolve?url=%s&client_id=YOUR_CLIENT_ID", url.QueryEscape(urlStr))
-	
+
 	req := s.newRequest(ctx, "GET", resolveURL)
 	req.Header.Set("Accept", "application/json")
 
@@ -46,8 +46,8 @@ func (s *SoundCloudService) Extract(ctx context.Context, urlStr string) ([]Downl
 		} `json:"user"`
 		Media struct {
 			Transcodings []struct {
-				URL      string `json:"url"`
-				Format   struct {
+				URL    string `json:"url"`
+				Format struct {
 					Protocol string `json:"protocol"`
 					MimeType string `json:"mime_type"`
 				} `json:"format"`
@@ -64,8 +64,8 @@ func (s *SoundCloudService) Extract(ctx context.Context, urlStr string) ([]Downl
 			} `json:"user"`
 			Media struct {
 				Transcodings []struct {
-					URL      string `json:"url"`
-					Format   struct {
+					URL    string `json:"url"`
+					Format struct {
 						Protocol string `json:"protocol"`
 						MimeType string `json:"mime_type"`
 					} `json:"format"`
@@ -97,8 +97,8 @@ func (s *SoundCloudService) Extract(ctx context.Context, urlStr string) ([]Downl
 }
 
 func (s *SoundCloudService) parseTrack(title, username string, duration int, artworkURL string, transcodings []struct {
-	URL      string `json:"url"`
-	Format   struct {
+	URL    string `json:"url"`
+	Format struct {
 		Protocol string `json:"protocol"`
 		MimeType string `json:"mime_type"`
 	} `json:"format"`
@@ -118,22 +118,22 @@ func (s *SoundCloudService) parseTrack(title, username string, duration int, art
 		}
 
 		result := DownloadResult{
-			URL:        tc.URL,
-			Title:      fmt.Sprintf("%s - %s", username, title),
-			MediaType:  MediaTypeAudio,
-			Quality:    QualityAudio,
-			Extension:  ext,
-			Duration:   duration,
-			Thumbnail:  artworkURL,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.%s", sanitizeFilename(username), sanitizeFilename(title), ext),
+			URL:       tc.URL,
+			Title:     fmt.Sprintf("%s - %s", username, title),
+			MediaType: MediaTypeAudio,
+			Quality:   QualityAudio,
+			Extension: ext,
+			Duration:  duration,
+			Thumbnail: artworkURL,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.%s", sanitizeFilename(username), sanitizeFilename(title), ext),
 			Metadata: map[string]string{
-				"service":    "soundcloud",
-				"track_id":   fmt.Sprintf("%d", trackID),
-				"author":     username,
-				"quality":    tc.Quality,
-				"protocol":   tc.Format.Protocol,
-				"mime_type":  tc.Format.MimeType,
+				"service":   "soundcloud",
+				"track_id":  fmt.Sprintf("%d", trackID),
+				"author":    username,
+				"quality":   tc.Quality,
+				"protocol":  tc.Format.Protocol,
+				"mime_type": tc.Format.MimeType,
 			},
 		}
 		results = append(results, result)

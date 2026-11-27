@@ -10,14 +10,20 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/SafwanGanz/Sonicos/internal/ai"
+	"github.com/SafwanGanz/Sonicos/internal/aimode"
 	"github.com/SafwanGanz/Sonicos/internal/api"
 	"github.com/SafwanGanz/Sonicos/internal/application"
 	"github.com/SafwanGanz/Sonicos/internal/audit"
 	"github.com/SafwanGanz/Sonicos/internal/command"
 	"github.com/SafwanGanz/Sonicos/internal/config"
+	"github.com/SafwanGanz/Sonicos/internal/gemini"
 	"github.com/SafwanGanz/Sonicos/internal/idempotency"
 	"github.com/SafwanGanz/Sonicos/internal/moderation"
+	"github.com/SafwanGanz/Sonicos/internal/owner"
 	_ "github.com/SafwanGanz/Sonicos/internal/plugins"
+	"github.com/SafwanGanz/Sonicos/internal/speech"
+	"github.com/SafwanGanz/Sonicos/internal/transcript"
 	"github.com/SafwanGanz/Sonicos/internal/whatsapp"
 )
 
@@ -36,6 +42,8 @@ func run() error {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel(cfg.LogLevel)}))
 	slog.SetDefault(logger)
+
+	owner.Set(cfg.OwnerJIDs)
 
 	auditLog := audit.New(logger, 1000)
 
@@ -95,6 +103,70 @@ func run() error {
 	}
 	bot.SetModerationStore(modStore)
 
+	var aiModeStore command.AIModeStore
+	if redisStore, ok := deduper.(*idempotency.Store); ok {
+		aiModeStore = aimode.NewRedisStore(redisStore.Client())
+	} else {
+		aiSQLStore, err := aimode.NewSQLStore(ctx, db, cfg.DatabaseDriver)
+		if err != nil {
+			return err
+		}
+		aiModeStore = aiSQLStore
+	}
+	var textProvider ai.TextProvider
+	var web2apiClient *ai.Client
+	if cfg.GeminiWeb2APIEnabled {
+
+		web2apiClient = ai.NewClient(ai.Config{
+			APIKey:         cfg.GeminiWeb2APIKey,
+			BaseURL:        cfg.GeminiWeb2APIBaseURL,
+			Model:          cfg.GeminiWeb2APIModel,
+			Timeout:        cfg.GeminiWeb2APITimeout,
+			MaxRetries:     cfg.GeminiWeb2APIMaxRetries,
+			AllowAnonymous: true,
+		})
+		if web2apiClient != nil {
+			textProvider = web2apiClient
+		}
+	}
+	if textProvider == nil && cfg.AIAPIKey != "" {
+		textProvider = ai.NewClient(ai.Config{
+			APIKey:     cfg.AIAPIKey,
+			BaseURL:    cfg.AIBaseURL,
+			Model:      cfg.AIModel,
+			Timeout:    90 * time.Second,
+			MaxRetries: 2,
+		})
+	}
+
+	geminiSTT := gemini.NewProvider(gemini.Config{
+		APIKey:        cfg.GeminiAPIKey,
+		Model:         cfg.GeminiSTTModel,
+		FallbackModel: cfg.GeminiSTTFallbackModel,
+		MaxRetries:    2,
+	})
+	var sttProviders []transcript.Provider
+	if geminiSTT != nil {
+		sttProviders = append(sttProviders, geminiSTT)
+	}
+	if cfg.AIAPIKey != "" {
+		sttClient := ai.NewClient(ai.Config{APIKey: cfg.AIAPIKey, BaseURL: cfg.AIBaseURL, Timeout: 90 * time.Second, MaxRetries: 1})
+		if openAISTT := ai.NewOpenAITranscription(sttClient, cfg.AISTTModel); openAISTT != nil {
+			sttProviders = append(sttProviders, openAISTT)
+		}
+	}
+	sttEngine := transcript.NewEngine(logger, sttProviders...)
+	ttsProvider := speech.NewEdgeTTS(cfg.EdgeTTSVoice)
+
+	bot.SetAIMode(aiModeStore, textProvider, sttEngine, ttsProvider, registry, logger)
+	logger.Info("ai driven mode initialized (default off until owner enables)",
+		"text_backend", providerName(textProvider),
+		"stt_providers", sttEngine.Providers(),
+		"tts_provider", ttsName(ttsProvider),
+		"owners_configured", len(cfg.OwnerJIDs),
+	)
+	go runAIDiagnostics(ctx, web2apiClient, cfg, geminiSTT, sttEngine, ttsProvider, logger)
+
 	persistent := !cfg.CloudEphemeral
 	if cfg.CloudEphemeral {
 		logger.Warn("running in volume-less ephemeral cloud mode; WhatsApp session and SQL feature store will reset on redeploy unless a PostgreSQL/Supabase DATABASE_URL is configured", "platform", cfg.CloudPlatform, "database_driver", cfg.DatabaseDriver, "feature_store", modBackend)
@@ -150,6 +222,61 @@ func run() error {
 
 	logger.Info("starting WhatsApp bot", "workers", cfg.Workers, "queue_size", cfg.QueueSize, "prefix", cfg.Prefix)
 	return bot.Run(ctx)
+}
+
+func runAIDiagnostics(ctx context.Context, web2api *ai.Client, cfg config.Config, geminiSTT *gemini.Provider, stt *transcript.Engine, tts speech.Synthesizer, logger *slog.Logger) {
+	diagCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 45*time.Second)
+	defer cancel()
+
+	if web2api != nil {
+		model, err := web2api.ResolveModel(diagCtx, cfg.GeminiWeb2APIModel, cfg.GeminiWeb2APIFallback)
+		if err != nil {
+			logger.Warn("gemini-web2api model validation failed", "base_url", cfg.GeminiWeb2APIBaseURL, "error", err)
+		} else {
+			logger.Info("gemini-web2api model ready", "base_url", cfg.GeminiWeb2APIBaseURL, "model", model)
+			probeCtx, probeCancel := context.WithTimeout(diagCtx, 30*time.Second)
+			defer probeCancel()
+			res, err := web2api.Chat(probeCtx, ai.ChatRequest{Messages: []ai.Message{{Role: "user", Content: "Reply with the single word: pong"}}})
+			if err != nil {
+				logger.Warn("gemini-web2api chat probe failed", "error", err)
+			} else {
+				logger.Info("gemini-web2api chat probe succeeded", "reply", strings.TrimSpace(res.Text))
+			}
+		}
+	} else {
+		logger.Info("gemini-web2api disabled (set GEMINI_WEB2API_ENABLED=true to use the local server)")
+	}
+
+	if geminiSTT != nil {
+		status, err := geminiSTT.HealthCheck(diagCtx)
+		if err != nil {
+			logger.Warn("gemini speech-to-text unavailable", "status", status, "error", err)
+		} else {
+			logger.Info("gemini speech-to-text ready", "status", status)
+		}
+	} else {
+		logger.Info("gemini speech-to-text not configured (set GEMINI_API_KEY for free-tier voice transcription)")
+	}
+	if len(stt.Providers()) == 0 {
+		logger.Warn("no transcription provider available; voice messages cannot be transcribed")
+	}
+	if ttsName(tts) == "" {
+		logger.Info("no speech synthesis provider available; AI replies will be text only")
+	}
+}
+
+func providerName(p ai.TextProvider) string {
+	if p == nil || !p.Available() {
+		return "none"
+	}
+	return p.Name()
+}
+
+func ttsName(s speech.Synthesizer) string {
+	if s == nil || !s.Available() {
+		return ""
+	}
+	return s.Name()
 }
 
 func logLevel(value string) slog.Level {

@@ -55,18 +55,18 @@ type YouTubeData struct {
 }
 
 type Format struct {
-	URL              string  `json:"url"`
-	MimeType         string  `json:"mimeType"`
-	Bitrate          int     `json:"bitrate"`
-	Width            int     `json:"width"`
-	Height           int     `json:"height"`
-	Quality          string  `json:"quality"`
-	QualityLabel     string  `json:"qualityLabel"`
-	ContentLength    string  `json:"contentLength"`
-	ApproxDurationMs string  `json:"approxDurationMs"`
-	AudioQuality     string  `json:"audioQuality"`
-	AudioChannels    int     `json:"audioChannels"`
-	AudioSampleRate  string  `json:"audioSampleRate"`
+	URL              string `json:"url"`
+	MimeType         string `json:"mimeType"`
+	Bitrate          int    `json:"bitrate"`
+	Width            int    `json:"width"`
+	Height           int    `json:"height"`
+	Quality          string `json:"quality"`
+	QualityLabel     string `json:"qualityLabel"`
+	ContentLength    string `json:"contentLength"`
+	ApproxDurationMs string `json:"approxDurationMs"`
+	AudioQuality     string `json:"audioQuality"`
+	AudioChannels    int    `json:"audioChannels"`
+	AudioSampleRate  string `json:"audioSampleRate"`
 	InitRange        struct {
 		Start string `json:"start"`
 		End   string `json:"end"`
@@ -85,13 +85,11 @@ func (s *YouTubeService) Extract(ctx context.Context, urlStr string) ([]Download
 		return nil, fmt.Errorf("could not extract video ID from URL")
 	}
 
-	// Try Innertube API first
 	results, err := s.tryInnertubeAPI(ctx, videoID)
 	if err == nil && len(results) > 0 {
 		return results, nil
 	}
 
-	// Fallback to yt-dlp if available
 	return s.tryYTDLP(ctx, urlStr)
 }
 
@@ -111,8 +109,8 @@ func (s *YouTubeService) tryInnertubeAPI(ctx context.Context, videoID string) ([
 				"html5Preference": "HTML5_PREF_WANTS",
 			},
 		},
-		"contentCheckOk":  true,
-		"racyCheckOk":     true,
+		"contentCheckOk": true,
+		"racyCheckOk":    true,
 	}
 
 	body, _ := json.Marshal(payload)
@@ -157,7 +155,7 @@ func (s *YouTubeService) tryYTDLP(ctx context.Context, urlStr string) ([]Downloa
 		"--no-playlist",
 		"--no-warnings",
 		"--ignore-errors",
-		"-J", // JSON output
+		"-J",
 		urlStr,
 	)
 	cmd.Dir = tmpDir
@@ -168,23 +166,23 @@ func (s *YouTubeService) tryYTDLP(ctx context.Context, urlStr string) ([]Downloa
 	}
 
 	var info struct {
-		ID          string `json:"id"`
-		Title       string `json:"title"`
-		Duration    int    `json:"duration"`
-		Thumbnail   string `json:"thumbnail"`
-		Uploader    string `json:"uploader"`
-		Formats     []struct {
-			URL          string `json:"url"`
-			FormatID     string `json:"format_id"`
-			Ext          string `json:"ext"`
-			Protocol     string `json:"protocol"`
-			Vcodec       string `json:"vcodec"`
-			Acodec       string `json:"acodec"`
-			Width        int    `json:"width"`
-			Height       int    `json:"height"`
-			Filesize     int64  `json:"filesize"`
-			TBR          float64 `json:"tbr"`
-			FormatNote   string `json:"format_note"`
+		ID        string `json:"id"`
+		Title     string `json:"title"`
+		Duration  int    `json:"duration"`
+		Thumbnail string `json:"thumbnail"`
+		Uploader  string `json:"uploader"`
+		Formats   []struct {
+			URL        string  `json:"url"`
+			FormatID   string  `json:"format_id"`
+			Ext        string  `json:"ext"`
+			Protocol   string  `json:"protocol"`
+			Vcodec     string  `json:"vcodec"`
+			Acodec     string  `json:"acodec"`
+			Width      int     `json:"width"`
+			Height     int     `json:"height"`
+			Filesize   int64   `json:"filesize"`
+			TBR        float64 `json:"tbr"`
+			FormatNote string  `json:"format_note"`
 		} `json:"formats"`
 	}
 
@@ -216,16 +214,16 @@ func (s *YouTubeService) tryYTDLP(ctx context.Context, urlStr string) ([]Downloa
 		}
 
 		result := DownloadResult{
-			URL:        f.URL,
-			Title:      info.Title,
-			MediaType:  mediaType,
-			Quality:    quality,
-			Extension:  f.Ext,
-			Duration:   info.Duration,
-			Thumbnail:  info.Thumbnail,
-			Filesize:   f.Filesize,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.%s", sanitizeFilename(info.Title), f.Ext),
+			URL:       f.URL,
+			Title:     info.Title,
+			MediaType: mediaType,
+			Quality:   quality,
+			Extension: f.Ext,
+			Duration:  info.Duration,
+			Thumbnail: info.Thumbnail,
+			Filesize:  f.Filesize,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.%s", sanitizeFilename(info.Title), f.Ext),
 			Metadata: map[string]string{
 				"service":   "youtube",
 				"video_id":  info.ID,
@@ -285,15 +283,15 @@ func (s *YouTubeService) parseFormats(data YouTubeData, videoID string) ([]Downl
 		ext := s.getExtension(f.MimeType)
 
 		result := DownloadResult{
-			URL:        f.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    quality,
-			Extension:  ext,
-			Duration:   duration,
-			Thumbnail:  thumbnail,
-			Filesize:   s.parseInt64(f.ContentLength),
-			DirectURL:  true,
+			URL:       f.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   quality,
+			Extension: ext,
+			Duration:  duration,
+			Thumbnail: thumbnail,
+			Filesize:  s.parseInt64(f.ContentLength),
+			DirectURL: true,
 			Metadata: map[string]string{
 				"service":       "youtube",
 				"video_id":      videoID,
@@ -313,15 +311,15 @@ func (s *YouTubeService) parseFormats(data YouTubeData, videoID string) ([]Downl
 	for _, f := range audioFormats {
 		ext := s.getExtension(f.MimeType)
 		result := DownloadResult{
-			URL:        f.URL,
-			Title:      title + " (audio)",
-			MediaType:  MediaTypeAudio,
-			Quality:    QualityAudio,
-			Extension:  ext,
-			Duration:   duration,
-			Thumbnail:  thumbnail,
-			Filesize:   s.parseInt64(f.ContentLength),
-			DirectURL:  true,
+			URL:       f.URL,
+			Title:     title + " (audio)",
+			MediaType: MediaTypeAudio,
+			Quality:   QualityAudio,
+			Extension: ext,
+			Duration:  duration,
+			Thumbnail: thumbnail,
+			Filesize:  s.parseInt64(f.ContentLength),
+			DirectURL: true,
 			Metadata: map[string]string{
 				"service":   "youtube",
 				"video_id":  videoID,

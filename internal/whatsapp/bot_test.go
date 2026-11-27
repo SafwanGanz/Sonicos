@@ -88,16 +88,13 @@ func TestHandleEvent_IgnoresMessagesBeforeConnectAndAcceptsAfterConnect(t *testi
 	bot := newTestBot(clock)
 	handler := bot.handleEvent(context.Background())
 
-	// Connect 5 seconds after NewBot.
 	clock.Advance(5 * time.Second)
 	connectTime := clock.Now()
 	handler(&events.Connected{})
 
-	// Old messages sent before connect (beyond skew tolerance) must be ignored.
 	handler(makeGroupMessage("old-1", bootTime.Add(-10*time.Minute)))
 	handler(makeGroupMessage("old-2", connectTime.Add(-10*time.Second)))
 
-	// Live message sent right after connect must be accepted.
 	clock.Advance(1 * time.Second)
 	handler(makeGroupMessage("live-1", clock.Now()))
 
@@ -114,12 +111,11 @@ func TestHandleEvent_IgnoresOfflineSyncWindowAndAcceptsAfterCompleted(t *testing
 
 	handler(&events.OfflineSyncPreview{Total: 3, Messages: 3})
 
-	// Offline messages (old or at the connect boundary) must be ignored while offline sync is active.
 	handler(makeGroupMessage("sync-old", clock.Now().Add(-5*time.Minute)))
 	handler(makeGroupMessage("sync-boundary", clock.Now()))
 
 	handler(&events.Connected{})
-	// Connected alone must not clear an active offline sync when messages remain.
+
 	handler(makeGroupMessage("sync-still-active", clock.Now()))
 
 	handler(&events.OfflineSyncCompleted{Count: 3})
@@ -137,7 +133,6 @@ func TestHandleEvent_ReceiptsOnlyOfflineSyncDoesNotBlockLiveMessages(t *testing.
 	bot := newTestBot(clock)
 	handler := bot.handleEvent(context.Background())
 
-	// Total=200 from receipts/notifications/appdata, but Messages=0: live messages must not wait for OfflineSyncCompleted.
 	handler(&events.OfflineSyncPreview{Total: 200, Messages: 0})
 	handler(&events.Connected{})
 	handler(makeGroupMessage("live-with-receipts-only", clock.Now()))
@@ -156,11 +151,9 @@ func TestHandleEvent_ClearsOfflineSyncAfterExpectedMessageCountBeforeCompletedEv
 	handler(&events.Connected{})
 	handler(&events.OfflineSyncPreview{Total: 200, Messages: 2})
 
-	// Drop the 2 expected offline messages.
 	handler(makeGroupMessage("offline-1", clock.Now().Add(-5*time.Minute)))
 	handler(makeGroupMessage("offline-2", clock.Now().Add(-1*time.Minute)))
 
-	// Even before OfflineSyncCompleted arrives, offlineMessagesRemaining reached 0 so a new command is accepted immediately.
 	handler(makeGroupMessage("live-right-after-2", clock.Now()))
 
 	got := drainQueueIDs(bot.queue)
@@ -177,17 +170,13 @@ func TestHandleEvent_ClearlyLiveMessageBypassesOfflineSyncWithoutConsumingQuota(
 	handler(&events.Connected{})
 	handler(&events.OfflineSyncPreview{Total: 200, Messages: 2})
 
-	// 1st offline message arrives.
 	handler(makeGroupMessage("offline-1", clock.Now().Add(-10*time.Minute)))
 
-	// A clearly live message (after acceptAfter + incomingSkewTolerance) arrives concurrently before offline sync finishes.
 	liveTS := clock.Now().Add(incomingSkewTolerance + time.Second)
 	handler(makeGroupMessage("live-during-sync", liveTS))
 
-	// 2nd offline message must STILL be dropped (clearly live message didn't consume its quota).
 	handler(makeGroupMessage("offline-2", clock.Now().Add(-2*time.Minute)))
 
-	// Now quota is 0; a boundary message at clock.Now() is accepted.
 	handler(makeGroupMessage("live-after-quota", clock.Now()))
 
 	got := drainQueueIDs(bot.queue)
@@ -216,15 +205,14 @@ func TestHandleEvent_ConnectedBeforeOfflineSyncPreview(t *testing.T) {
 }
 
 func TestHandleEvent_SubSecondAndSmallSkewTolerance(t *testing.T) {
-	// Simulate connect at 12:00:05.900; WhatsApp timestamps have 1-second resolution (12:00:05 or 12:00:04).
+
 	clock := newFakeClock(time.Date(2026, 11, 26, 12, 0, 5, 900_000_000, time.UTC))
 	bot := newTestBot(clock)
 	handler := bot.handleEvent(context.Background())
 	handler(&events.Connected{})
 
-	// 1 second before truncated connect time (12:00:04) is within 2s skew tolerance -> accepted.
 	handler(makeGroupMessage("skew-ok", time.Date(2026, 11, 26, 12, 0, 4, 0, time.UTC)))
-	// 3 seconds before truncated connect time (12:00:02) exceeds 2s skew tolerance -> ignored.
+
 	handler(makeGroupMessage("skew-too-old", time.Date(2026, 11, 26, 12, 0, 2, 0, time.UTC)))
 
 	got := drainQueueIDs(bot.queue)
@@ -242,7 +230,6 @@ func TestHandleEvent_RetriedOldOfflineMessageAfterSyncCompletedIsIgnored(t *test
 	handler(&events.OfflineSyncPreview{Total: 1, Messages: 1})
 	handler(&events.OfflineSyncCompleted{Count: 1})
 
-	// Suppose an undecryptable message from 15 minutes ago gets retried later with RetryCount > 0.
 	retried := makeGroupMessage("retried-old", clock.Now().Add(-15*time.Minute))
 	retried.RetryCount = 1
 	handler(retried)
@@ -260,20 +247,16 @@ func TestShouldIgnoreMessage_StatelessFilters(t *testing.T) {
 	handler := bot.handleEvent(context.Background())
 	handler(&events.Connected{})
 
-	// Nil message event must not panic or queue.
 	handler((*events.Message)(nil))
 
-	// Broadcast list message.
 	broadcast := makeGroupMessage("broadcast-1", now)
 	broadcast.Info.Chat = types.NewJID("123456", types.BroadcastServer)
 	handler(broadcast)
 
-	// HistorySync-derived message.
 	historyMsg := makeGroupMessage("history-1", now)
 	historyMsg.SourceWebMsg = &waWeb.WebMessageInfo{}
 	handler(historyMsg)
 
-	// Unavailable placeholder resend message.
 	placeholderMsg := makeGroupMessage("placeholder-1", now)
 	placeholderMsg.UnavailableRequestID = "req-123"
 	handler(placeholderMsg)
@@ -289,18 +272,15 @@ func TestHandleEvent_ReconnectAfterDowntimeDropsOfflineMessagesBeforeConnected(t
 	bot := newTestBot(clock)
 	handler := bot.handleEvent(context.Background())
 
-	// Initial connection.
 	handler(&events.Connected{})
 	handler(makeGroupMessage("before-disconnect", clock.Now()))
 
-	// Disconnect for 30 minutes.
 	handler(&events.Disconnected{})
 	sentWhileOffline := clock.Now().Add(10 * time.Minute)
 
 	clock.Advance(30 * time.Minute)
 	bot.markConnecting()
 
-	// Offline message arrives before Connected without OfflineSyncPreview; awaitingConnect advances cutoff to current time.
 	handler(makeGroupMessage("offline-while-down", sentWhileOffline))
 
 	handler(&events.Connected{})
@@ -393,7 +373,6 @@ func TestGroupServiceCachePrimeGetInfoAndEventInvalidate(t *testing.T) {
 		},
 	})
 
-	// Cache hit must succeed even with nil whatsmeow.Client.
 	info, err := gs.GetInfo(context.Background(), groupJID.String())
 	if err != nil {
 		t.Fatalf("GetInfo cached hit failed: %v", err)
@@ -402,7 +381,6 @@ func TestGroupServiceCachePrimeGetInfoAndEventInvalidate(t *testing.T) {
 		t.Fatalf("unexpected cached group info: %+v", info)
 	}
 
-	// *events.GroupInfo must invalidate cached group metadata.
 	handler := bot.handleEvent(context.Background())
 	handler(&events.GroupInfo{JID: groupJID})
 
@@ -432,7 +410,6 @@ func TestHydrateQuotedSoundStickerSkipsSQLForPlainRepliesAndCommands(t *testing.
 		audioCache: newStickerAudioCache(),
 	}
 
-	// Plain quoted message and !ping should not hit SQL LoadStage.
 	for _, txt := range []string{"just replying to something", "!ping", "!help", "!kick @user"} {
 		msg := command.Message{
 			Chat:            "1203630001@g.us",
@@ -446,7 +423,6 @@ func TestHydrateQuotedSoundStickerSkipsSQLForPlainRepliesAndCommands(t *testing.
 		t.Fatalf("expected 0 SQL LoadStage calls for plain quoted replies/commands, got %d", got)
 	}
 
-	// Audio/sticker command on a quoted message without QuotedSticker SHOULD consult SQL fallback.
 	stealMsg := command.Message{
 		Chat:            "1203630001@g.us",
 		Text:            "!steal MyPack",
@@ -458,7 +434,6 @@ func TestHydrateQuotedSoundStickerSkipsSQLForPlainRepliesAndCommands(t *testing.
 		t.Fatal("expected SQL LoadStage fallback for !steal")
 	}
 
-	// Quoted sticker SHOULD consult SQL fallback even for unrelated text.
 	before := store.loadStageCalls.Load()
 	quotedStickerMsg := command.Message{
 		Chat:            "1203630001@g.us",

@@ -36,7 +36,6 @@ const (
 	sseHeartbeat            = 25 * time.Second
 )
 
-// BotClient abstracts the WhatsApp bot operations exposed through the dashboard API.
 type BotClient interface {
 	ClientState() string
 	DeviceID() *types.JID
@@ -268,7 +267,6 @@ type pagedResponse struct {
 	Total int   `json:"total"`
 }
 
-// NewServer constructs the hardened HTTP dashboard and API server.
 func NewServer(
 	bot BotClient,
 	registry *command.Registry,
@@ -325,8 +323,6 @@ func NewServer(
 	return s
 }
 
-// NewDisabledHandler serves a minimal locked handler when PORT is set by a cloud platform
-// without DASHBOARD_PASSWORD configured.
 func NewDisabledHandler(auditLog *audit.Logger) http.Handler {
 	const disabledMsg = "Dashboard disabled: set DASHBOARD_PASSWORD in your environment variables and redeploy."
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -592,7 +588,6 @@ func (s *Server) writeError(w http.ResponseWriter, code int, msg string) {
 	s.json(w, code, map[string]string{"error": msg})
 }
 
-// broadcast sends an SSE event to all connected dashboard clients.
 func (s *Server) broadcast(event string, data any) {
 	payload, _ := json.Marshal(data)
 	msg := fmt.Sprintf("event: %s\ndata: %s\n\n", event, string(payload))
@@ -602,7 +597,7 @@ func (s *Server) broadcast(event string, data any) {
 		select {
 		case ch <- []byte(msg):
 		default:
-			// Slow client, skip
+
 		}
 	}
 }
@@ -620,7 +615,6 @@ func (s *Server) removeClient(ch chan []byte) {
 	close(ch)
 }
 
-// SetStorageInfo records the active database and feature store backends for health reporting.
 func (s *Server) SetStorageInfo(dbDriver, modBackend string, persistent bool, platform string) {
 	s.mu.Lock()
 	if dbDriver != "" {
@@ -634,7 +628,6 @@ func (s *Server) SetStorageInfo(dbDriver, modBackend string, persistent bool, pl
 	s.mu.Unlock()
 }
 
-// HandleBotEvent receives asynchronous state updates from the WhatsApp bot and pushes SSE updates.
 func (s *Server) HandleBotEvent(event string, data any) {
 	switch event {
 	case "qr":
@@ -658,8 +651,6 @@ func (s *Server) HandleBotEvent(event string, data any) {
 	}
 }
 
-// --- Health ---
-
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -672,8 +663,6 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"whatsapp": s.bot.ClientState(),
 	})
 }
-
-// --- Auth ---
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
@@ -757,8 +746,6 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	}
 	s.json(w, http.StatusOK, map[string]any{"authenticated": true})
 }
-
-// --- Status ---
 
 func (s *Server) buildStatus() statusResponse {
 	st := s.bot.ClientState()
@@ -845,8 +832,6 @@ func healthDetail(connected bool) string {
 	return "Not connected"
 }
 
-// --- QR ---
-
 func encodeQRPNGDataURL(payload string) string {
 	if payload == "" {
 		return ""
@@ -915,8 +900,6 @@ func (s *Server) handleQRRefresh(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
-// --- Pairing ---
-
 func (s *Server) handlePair(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -956,8 +939,6 @@ func (s *Server) handlePair(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:   expiresAt.UTC().Format(time.RFC3339),
 	})
 }
-
-// --- Connection ---
 
 func (s *Server) handleReconnect(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -1003,8 +984,6 @@ func (s *Server) handleUnlink(w http.ResponseWriter, r *http.Request) {
 	s.audit.Record("onboarding", "warning", "admin", "whatsapp-session", "unlink", "success", ip, "WhatsApp account unlinked from dashboard", nil)
 	s.json(w, http.StatusOK, map[string]string{"ok": "true"})
 }
-
-// --- Settings ---
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -1072,8 +1051,6 @@ func (s *Server) handleChangePrefix(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
-// --- Commands ---
-
 func (s *Server) handleCommands(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -1111,8 +1088,6 @@ func (s *Server) handleCommandPatch(w http.ResponseWriter, r *http.Request) {
 	s.audit.Record("administrative", "info", "admin", "command:"+name, "command_updated", "success", audit.ClientIP(r), "command configuration updated", nil)
 	s.json(w, http.StatusOK, map[string]string{"ok": "true"})
 }
-
-// --- Groups ---
 
 func (s *Server) handleGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -1172,8 +1147,6 @@ func (s *Server) handleGroup(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
 }
-
-// --- Moderation ---
 
 func (s *Server) handleModSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -1321,8 +1294,6 @@ func (s *Server) handleModHistory(w http.ResponseWriter, r *http.Request) {
 	s.json(w, http.StatusOK, pagedResponse{Items: anyRows, Total: len(rows)})
 }
 
-// --- Users ---
-
 func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -1394,8 +1365,6 @@ func (s *Server) handleUserResetWithJID(w http.ResponseWriter, r *http.Request, 
 	s.json(w, http.StatusOK, map[string]string{"ok": "true"})
 }
 
-// --- Logs ---
-
 func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -1412,8 +1381,6 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	s.json(w, http.StatusOK, pagedResponse{Items: anyItems, Total: total})
 }
-
-// --- Events (SSE) ---
 
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -1463,8 +1430,6 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// --- Static file serving ---
-
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -1482,8 +1447,6 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(static.IndexHTML)
 	}
 }
-
-// --- Helpers ---
 
 func (s *Server) getStr(key, def string) string {
 	s.mu.RLock()
@@ -1556,14 +1519,11 @@ func (s *Server) addModEvent(user, action, detail string) {
 	s.audit.Record("administrative", "info", user, "moderation", action, "success", "", "moderation: "+action+" - "+detail, nil)
 }
 
-// Handler returns an http.Handler with all API routes and middleware.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// Unauthenticated health probe
 	mux.HandleFunc("/health", s.handleHealth)
 
-	// Authenticated API routes
 	mux.HandleFunc("/status", s.corsAuth(s.handleStatus))
 	mux.HandleFunc("/events", s.corsAuth(s.handleEvents))
 	mux.HandleFunc("/qr", s.corsAuth(s.handleQR))
@@ -1588,12 +1548,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/users/", s.corsAuth(s.handleUserRoutes))
 	mux.HandleFunc("/logs", s.corsAuth(s.handleLogs))
 
-	// Auth routes (CORS + CSRF origin check)
 	mux.HandleFunc("/auth/login", s.cors(s.handleLogin))
 	mux.HandleFunc("/auth/logout", s.cors(s.handleLogout))
 	mux.HandleFunc("/auth/me", s.cors(s.handleMe))
 
-	// Embedded dashboard HTML
 	mux.HandleFunc("/", s.cors(s.handleIndex))
 
 	return mux

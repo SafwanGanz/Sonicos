@@ -58,7 +58,7 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	dev := makeTestDevice(container, "15551234567")
-	// Attach BEFORE Save() to verify the fresh-pairing PutDevice hook wires fastSessionStore.
+
 	fdc := attachFastStore(ctx, dev, db, logger)
 	t.Cleanup(func() { fdc.Close(context.Background()) })
 
@@ -72,7 +72,6 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 		t.Fatal("expected dev.Container to remain *fastDeviceContainer after Save")
 	}
 
-	// 1. Batched PreKeys (812 keys)
 	preKeys, err := dev.PreKeys.GetOrGenPreKeys(ctx, 812)
 	if err != nil {
 		t.Fatalf("GetOrGenPreKeys(812): %v", err)
@@ -91,7 +90,6 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 		t.Fatalf("GetPreKey cache lookup failed: got=%v err=%v", gotPK, err)
 	}
 
-	// 2. Sessions, Identities, SenderKeys, MsgSecrets, EventBuffer, OutgoingEvents
 	sessBatch := make(map[string][]byte, 50)
 	addrs := make([]string, 0, 50)
 	for i := range 50 {
@@ -103,7 +101,6 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 		t.Fatalf("PutManySessions: %v", err)
 	}
 
-	// RAM read succeeds immediately before Flush.
 	gotMany, err := dev.Sessions.GetManySessions(ctx, addrs)
 	if err != nil {
 		t.Fatalf("GetManySessions: %v", err)
@@ -169,7 +166,6 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 		t.Fatalf("GetOutgoingEvent = %q, %q, %v", fmtName, pt, err)
 	}
 
-	// 3. Flush and verify persistence directly in SQL tables.
 	if err := fdc.Flush(ctx); err != nil {
 		t.Fatalf("fdc.Flush: %v", err)
 	}
@@ -192,7 +188,6 @@ func TestFastStore_BatchedPreKeysSessionsAndPreload(t *testing.T) {
 		t.Fatalf("persisted event_buffer plaintext after clear = %v, err=%v", ptCheck, err)
 	}
 
-	// 4. Reload in a brand-new Device + fastDeviceContainer to verify startup preload.
 	dev2, err := container.GetFirstDevice(ctx)
 	if err != nil || dev2 == nil {
 		t.Fatalf("GetFirstDevice: %v", err)
