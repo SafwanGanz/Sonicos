@@ -153,26 +153,25 @@ func (b *Bot) processMessage(ctx context.Context, evt *events.Message) error {
 			return err
 		}
 
-		// Try sending with quoted reply first, fallback to non-quoted on sender key errors
+		// Try sending with quoted reply first, fallback to non-quoted on any error (sender key, timeout, etc.)
 		sendWithFallback := func(msg *waE2E.Message) error {
 			sendStart := time.Now()
 			resp, err := b.client.SendMessage(ctx, evt.Info.Chat, msg)
 			sendElapsed := time.Since(sendStart)
 			totalElapsed := time.Since(start)
 			if err != nil {
-				// Check if it's a sender key error - retry without quoting
-				errStr := err.Error()
-				if strings.Contains(errStr, "sender key") || strings.Contains(errStr, "senderKey") {
-					// Retry without quoted context for any message type
-					fallbackMsg := StripQuotedContext(msg)
-					if b.logger != nil {
-						b.logger.Warn("sender key error, retrying without quote", "chat", evt.Info.Chat.String(), "error", err)
-					}
-					resp, err = b.client.SendMessage(ctx, evt.Info.Chat, fallbackMsg)
-					sendElapsed = time.Since(sendStart)
-					totalElapsed = time.Since(start)
-					msg = fallbackMsg // Use fallback msg for logging/remember
+				// Retry without quoted context for any message type on any error
+				// Use a fresh context with its own timeout since original may be cancelled
+				fallbackMsg := StripQuotedContext(msg)
+				if b.logger != nil {
+					b.logger.Warn("send failed, retrying without quote", "chat", evt.Info.Chat.String(), "error", err)
 				}
+				fallbackCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				resp, err = b.client.SendMessage(fallbackCtx, evt.Info.Chat, fallbackMsg)
+				sendElapsed = time.Since(sendStart)
+				totalElapsed = time.Since(start)
+				msg = fallbackMsg
 				if err != nil {
 					return fmt.Errorf("send quoted reply: %w", err)
 				}

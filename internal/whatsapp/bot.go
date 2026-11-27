@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,6 +30,9 @@ type Bot struct {
 	workers    int
 	queue      chan *events.Message
 	logger     *slog.Logger
+
+	autoApproveRequests bool
+	blockedNumbers      []string
 
 	sessionOpMu sync.Mutex
 	pairMu      sync.RWMutex
@@ -226,7 +230,7 @@ func (b *Bot) warmGroupCache(ctx context.Context) {
 	}
 }
 
-func NewBot(store *sqlstore.Container, processor *application.Processor, workers, queueSize int, logger *slog.Logger) (*Bot, error) {
+func NewBot(store *sqlstore.Container, processor *application.Processor, workers, queueSize int, logger *slog.Logger, autoApproveRequests bool, blockedNumbers []string) (*Bot, error) {
 	device, err := store.GetFirstDevice(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("load WhatsApp device: %w", err)
@@ -238,17 +242,19 @@ func NewBot(store *sqlstore.Container, processor *application.Processor, workers
 
 	now := time.Now().UTC()
 	return &Bot{
-		client:          client,
-		processor:       processor,
-		groups:          newGroupServiceCache(client),
-		audioCache:      newStickerAudioCache(),
-		workers:         workers,
-		queue:           make(chan *events.Message, queueSize),
-		logger:          logger,
-		qrSnap:          QRSnapshot{State: "disconnected"},
-		acceptAfter:     now,
-		awaitingConnect: true,
-		now:             time.Now,
+		client:               client,
+		processor:            processor,
+		groups:               newGroupServiceCache(client),
+		audioCache:           newStickerAudioCache(),
+		workers:              workers,
+		queue:                make(chan *events.Message, queueSize),
+		logger:               logger,
+		autoApproveRequests:  autoApproveRequests,
+		blockedNumbers:       blockedNumbers,
+		qrSnap:               QRSnapshot{State: "disconnected"},
+		acceptAfter:          now,
+		awaitingConnect:      true,
+		now:                  time.Now,
 	}, nil
 }
 
@@ -270,6 +276,15 @@ func (b *Bot) Run(ctx context.Context) error {
 		go func() {
 			defer workers.Done()
 			b.runWorker(workerCtx)
+		}()
+	}
+
+	// Start auto-approve join requests worker if enabled
+	if b.autoApproveRequests && len(b.blockedNumbers) > 0 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			b.runAutoApproveWorker(workerCtx)
 		}()
 	}
 
@@ -377,7 +392,7 @@ func (b *Bot) handleEvent(ctx context.Context) whatsmeow.EventHandler {
 			}
 			b.markDisconnected()
 			b.pairMu.Lock()
-			b.connectedAt = time.Time{}
+b.connectedAt = time.Time{}
 			b.qrSnap = QRSnapshot{State: "disconnected"}
 			b.pairMu.Unlock()
 			b.emitEvent("status", map[string]any{"event": "logged_out", "reason": reason})
@@ -390,4 +405,122 @@ func (b *Bot) handleEvent(ctx context.Context) whatsmeow.EventHandler {
 			}
 		}
 	}
+}
+
+// runAutoApproveWorker periodically checks for pending join requests in groups
+// where the bot is an admin and automatically approves them (except blocked numbers).
+func (b *Bot) runAutoApproveWorker(ctx context.Context) {
+	if b.logger != nil {
+		b.logger.Info("auto-approve join requests worker started")
+	}
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			if b.logger != nil {
+				b.logger.Info("auto-approve join requests worker stopped")
+			}
+			return
+		case <-ticker.C:
+			b.processPendingJoinRequests(ctx)
+		}
+	}
+}
+
+func (b *Bot) processPendingJoinRequests(ctx context.Context) {
+	if b.groups == nil || b.client == nil || b.client.Store == nil || b.client.Store.ID == nil {
+		return
+	}
+
+	joinedGroups, err := b.client.GetJoinedGroups(ctx)
+	if err != nil {
+		if b.logger != nil {
+			b.logger.Debug("failed to get joined groups for auto-approve", "error", err)
+		}
+		return
+	}
+
+	for _, group := range joinedGroups {
+		groupJID := group.JID.String()
+
+		// Check if bot is admin in this group
+		groupInfo, err := b.groups.GetInfo(ctx, groupJID)
+		if err != nil {
+			continue
+		}
+
+		botIsAdmin := false
+		for _, p := range groupInfo.Participants {
+			if p.JID == b.client.Store.ID.String() && p.IsAdmin {
+				botIsAdmin = true
+				break
+			}
+		}
+
+		if !botIsAdmin {
+			continue
+		}
+
+		// Get pending join requests
+		reqs, err := b.groups.GetJoinRequests(ctx, groupJID)
+		if err != nil || len(reqs) == 0 {
+			continue
+		}
+
+		var toApprove []string
+		var toReject []string
+
+		for _, req := range reqs {
+			userNum := jidUser(req.JID)
+			blocked := false
+			for _, blockedNum := range b.blockedNumbers {
+				if jidUser(blockedNum) == userNum {
+					blocked = true
+					break
+				}
+			}
+
+			if blocked {
+				toReject = append(toReject, req.JID)
+				if b.logger != nil {
+					b.logger.Info("auto-rejecting join request from blocked number", "group", groupJID, "user", req.JID)
+				}
+			} else {
+				toApprove = append(toApprove, req.JID)
+				if b.logger != nil {
+					b.logger.Info("auto-approving join request", "group", groupJID, "user", req.JID)
+				}
+			}
+		}
+
+		if len(toApprove) > 0 {
+			if err := b.groups.UpdateJoinRequests(ctx, groupJID, toApprove, true); err != nil {
+				if b.logger != nil {
+					b.logger.Error("failed to auto-approve join requests", "group", groupJID, "error", err)
+				}
+			}
+		}
+
+		if len(toReject) > 0 {
+			if err := b.groups.UpdateJoinRequests(ctx, groupJID, toReject, false); err != nil {
+				if b.logger != nil {
+					b.logger.Error("failed to auto-reject join requests", "group", groupJID, "error", err)
+				}
+			}
+		}
+	}
+}
+
+// jidUser extracts the user part from a JID
+func jidUser(jid string) string {
+	jid = strings.TrimSpace(jid)
+	if idx := strings.Index(jid, "@"); idx >= 0 {
+		jid = jid[:idx]
+	}
+	if idx := strings.Index(jid, ":"); idx >= 0 {
+		jid = jid[:idx]
+	}
+	return jid
 }

@@ -2,42 +2,17 @@ package plugins
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/SafwanGanz/Sonicos/internal/command"
+	"github.com/SafwanGanz/Sonicos/internal/downloader"
 )
-
-const instagramAPI = "https://apiii-xrina.my.id/download/instagram"
-
-type instagramResponse struct {
-	Status  bool   `json:"status"`
-	Creator string `json:"creator"`
-	Data    struct {
-		SourceURL string `json:"sourceUrl"`
-		Type      string `json:"type"`
-		Videos    []struct {
-			Type string `json:"type"`
-			URL  string `json:"url"`
-		} `json:"videos"`
-		Images []struct {
-			Type string `json:"type"`
-			URL  string `json:"url"`
-		} `json:"images"`
-		Media []struct {
-			Type string `json:"type"`
-			URL  string `json:"url"`
-		} `json:"media"`
-	} `json:"data"`
-}
-
-var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 func init() {
 	command.Register(command.Command{
@@ -45,135 +20,162 @@ func init() {
 		Aliases:     []string{"insta", "instagram"},
 		Category:    "Media",
 		Description: "Download Instagram reel/post media. Usage: !ig <url>",
-		Handler:     instagramDownloader,
+		Handler:     instagramHandler,
 	})
 }
 
-func instagramDownloader(ctx context.Context, message command.Message, args []string, reply command.ReplyFunc) error {
+func instagramHandler(ctx context.Context, message command.Message, args []string, reply command.ReplyFunc) error {
 	if len(args) == 0 {
 		return reply(ctx, command.Reply{Text: "Usage: !ig <instagram_url>"})
 	}
 
 	rawURL := strings.TrimSpace(args[0])
+	if rawURL == "" {
+		return reply(ctx, command.Reply{Text: "Usage: !ig <instagram_url>"})
+	}
 	if !strings.Contains(rawURL, "instagram.com") {
 		return reply(ctx, command.Reply{Text: "Please provide a valid Instagram URL"})
 	}
 
-	apiURL := fmt.Sprintf("%s?url=%s", instagramAPI, url.QueryEscape(rawURL))
+	// Try direct API first
+	dl := downloader.NewDownloader(30 * time.Second)
+	defer dl.Close()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	results, err := dl.Extract(ctx, rawURL)
 	if err != nil {
-		slog.Error("create instagram api request", "error", err)
-		return reply(ctx, command.Reply{Text: "Failed to create request"})
+		slog.Warn("instagram direct API failed, trying yt-dlp", "url", rawURL, "error", err)
+		// Fallback to yt-dlp
+		return downloadInstagramWithYTDLP(ctx, rawURL, reply)
 	}
 
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		slog.Error("call instagram api", "error", err)
-		return reply(ctx, command.Reply{Text: "Failed to fetch from Instagram API"})
-	}
-	defer resp.Body.Close()
+	const maxFileSize = 25 << 20
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		slog.Error("read instagram api response", "error", err)
-		return reply(ctx, command.Reply{Text: "Failed to read API response"})
-	}
-
-	var result instagramResponse
-	if err := json.Unmarshal(body, &result); err != nil {
-		slog.Error("parse instagram api response", "error", err)
-		return reply(ctx, command.Reply{Text: "Failed to parse API response"})
-	}
-
-	if !result.Status || result.Data.Type == "" {
-		return reply(ctx, command.Reply{Text: "Could not extract media from the provided URL"})
-	}
-
-	var mediaURL string
-	var mediaType string
-
-	switch result.Data.Type {
-	case "video":
-		if len(result.Data.Videos) > 0 {
-			mediaURL = result.Data.Videos[0].URL
-			mediaType = "video"
-		} else if len(result.Data.Media) > 0 {
-			mediaURL = result.Data.Media[0].URL
-			mediaType = "video"
+	for _, result := range results {
+		if result.URL == "" {
+			continue
 		}
-	case "image":
-		if len(result.Data.Images) > 0 {
-			mediaURL = result.Data.Images[0].URL
-			mediaType = "image"
-		} else if len(result.Data.Media) > 0 {
-			mediaURL = result.Data.Media[0].URL
-			mediaType = "image"
+		if result.Filesize > maxFileSize && result.MediaType == downloader.MediaTypeVideo {
+			continue
+		}
+
+		data, mimeType, err := downloadMedia(ctx, dl, result.URL)
+		if err != nil {
+			slog.Error("download media failed", "url", result.URL, "error", err)
+			continue
+		}
+
+		caption := fmt.Sprintf("%s\n📥 Instagram via Sonicos", result.Title)
+
+		switch result.MediaType {
+		case downloader.MediaTypeVideo:
+			return reply(ctx, command.Reply{
+				Video: &command.VideoReply{
+					Data:    data,
+					Caption: caption,
+					Seconds: uint32(result.Duration),
+					Width:   getWidth(result.Metadata),
+					Height:  getHeight(result.Metadata),
+				},
+			})
+		case downloader.MediaTypeImage:
+			return reply(ctx, command.Reply{
+				Image: &command.ImageReply{
+					Data:     data,
+					MIMEType: mimeType,
+					Caption:  caption,
+				},
+			})
 		}
 	}
 
-	if mediaURL == "" {
-		return reply(ctx, command.Reply{Text: "No media found in the response"})
-	}
-
-	mediaData, mimeType, err := downloadMedia(ctx, mediaURL)
-	if err != nil {
-		slog.Error("download media", "error", err, "url", mediaURL)
-		return reply(ctx, command.Reply{Text: "Failed to download media"})
-	}
-
-	switch mediaType {
-	case "video":
-		return reply(ctx, command.Reply{
-			Video: &command.VideoReply{
-				Data:    mediaData,
-				Caption: "Downloaded via Sonicos",
-			},
-		})
-	case "image":
-		return reply(ctx, command.Reply{
-			Image: &command.ImageReply{
-				Data:     mediaData,
-				MIMEType: mimeType,
-				Caption:  "Downloaded via Sonicos",
-			},
-		})
-	default:
-		return reply(ctx, command.Reply{Text: "Unknown media type"})
-	}
+	return reply(ctx, command.Reply{Text: "No media found"})
 }
 
-func downloadMedia(ctx context.Context, mediaURL string) ([]byte, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, mediaURL, nil)
+func downloadInstagramWithYTDLP(ctx context.Context, url string, reply command.ReplyFunc) error {
+	tmpDir, err := os.MkdirTemp("", "ytdlp-ig-*")
 	if err != nil {
-		return nil, "", err
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Download failed: %v", err)})
+	}
+	defer os.RemoveAll(tmpDir)
+
+	outputTemplate := filepath.Join(tmpDir, "%(title)s.%(ext)s")
+
+	ytArgs := []string{
+		"-f", "best[ext=mp4]/best",
+		"--recode-video", "mp4",
+		"--postprocessor-args", "ffmpeg:-movflags +faststart -c:v libx264 -preset ultrafast -c:a aac -b:a 128k",
+		"--max-filesize", "25M",
+		"-o", outputTemplate,
+		"--no-playlist",
+		"--no-warnings",
+		"--ignore-errors",
+		"--no-simulate",
+		url,
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Sonicos/1.0)")
+	dlCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
 
-	resp, err := httpClient.Do(req)
+	cmd := exec.CommandContext(dlCtx, "yt-dlp", ytArgs...)
+	cmd.Dir = tmpDir
+
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, "", fmt.Errorf("download failed with status: %d", resp.StatusCode)
+		errMsg := fmt.Sprintf("yt-dlp failed: %v\n%s", err, truncateOutput(string(output)))
+		slog.Error("instagram yt-dlp failed", "url", url, "error", errMsg)
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Download failed: %s", errMsg)})
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	files, err := os.ReadDir(tmpDir)
 	if err != nil {
-		return nil, "", err
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Failed to read downloaded file: %v", err)})
 	}
 
-	mimeType := resp.Header.Get("Content-Type")
-	if mimeType == "" {
-		if strings.HasSuffix(mediaURL, ".mp4") || strings.Contains(mediaURL, "video") {
-			mimeType = "video/mp4"
-		} else {
-			mimeType = "image/jpeg"
+	var downloadedFile string
+	for _, f := range files {
+		if !f.IsDir() {
+			downloadedFile = filepath.Join(tmpDir, f.Name())
+			break
 		}
 	}
 
-	return data, mimeType, nil
+	if downloadedFile == "" {
+		return reply(ctx, command.Reply{Text: "No file downloaded"})
+	}
+
+	info, err := os.Stat(downloadedFile)
+	if err != nil {
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Failed to stat downloaded file: %v", err)})
+	}
+
+	if info.Size() > maxFileSize {
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("File too large (%s)", formatSize(info.Size()))})
+	}
+
+	data, err := os.ReadFile(downloadedFile)
+	if err != nil {
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Failed to read downloaded file: %v", err)})
+	}
+
+	// Determine if it's video or image based on extension
+	ext := strings.ToLower(filepath.Ext(downloadedFile))
+	if ext == ".mp4" || ext == ".mov" || ext == ".webm" {
+		return reply(ctx, command.Reply{
+			Video: &command.VideoReply{
+				Data:     data,
+				Caption:  "Instagram via Sonicos",
+				Seconds:  0,
+				Width:    0,
+				Height:   0,
+			},
+		})
+	}
+
+	return reply(ctx, command.Reply{
+		Image: &command.ImageReply{
+			Data:     data,
+			MIMEType: "image/jpeg",
+			Caption:  "Instagram via Sonicos",
+		},
+	})
 }

@@ -24,6 +24,8 @@ type Config struct {
 	CloudPlatform       string
 	HasPersistentVolume bool
 	CloudEphemeral      bool
+	AutoApproveRequests bool
+	BlockedNumbers      []string
 }
 
 func Load() (Config, error) {
@@ -72,6 +74,8 @@ func Load() (Config, error) {
 		CloudPlatform:       platform,
 		HasPersistentVolume: hasVolume,
 		CloudEphemeral:      platform != "" && !hasVolume && dbDriver == "sqlite3",
+		AutoApproveRequests: envBool("AUTO_APPROVE_REQUESTS", false),
+		BlockedNumbers:      splitCSV(os.Getenv("BLOCKED_NUMBERS")),
 	}
 
 	var err error
@@ -201,6 +205,14 @@ func envInt(key string, fallback int) (int, error) {
 		return 0, fmt.Errorf("%s must be an integer: %w", key, err)
 	}
 	return parsed, nil
+}
+
+func envBool(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	return strings.ToLower(value) == "true" || value == "1" || strings.ToLower(value) == "yes"
 }
 
 func splitCSV(raw string) []string {

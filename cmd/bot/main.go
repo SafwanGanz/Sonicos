@@ -73,7 +73,7 @@ func run() error {
 		return err
 	}
 
-	bot, err := whatsapp.NewBot(sessionStore, processor, cfg.Workers, cfg.QueueSize, logger)
+	bot, err := whatsapp.NewBot(sessionStore, processor, cfg.Workers, cfg.QueueSize, logger, cfg.AutoApproveRequests, cfg.BlockedNumbers)
 	if err != nil {
 		return err
 	}
