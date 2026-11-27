@@ -152,35 +152,56 @@ func (b *Bot) processMessage(ctx context.Context, evt *events.Message) error {
 		if err != nil {
 			return err
 		}
-		sendStart := time.Now()
-		resp, err := b.client.SendMessage(ctx, evt.Info.Chat, outgoing)
-		sendElapsed := time.Since(sendStart)
-		totalElapsed := time.Since(start)
-		if err != nil {
-			return fmt.Errorf("send quoted reply: %w", err)
-		}
-		if b.logger != nil {
-			attrs := []any{
-				"chat", evt.Info.Chat.String(),
-				"message_id", string(evt.Info.ID),
-				"total_ms", totalElapsed.Milliseconds(),
-				"send_ms", sendElapsed.Milliseconds(),
-				"wa_queue_ms", resp.DebugTimings.Queue.Milliseconds(),
-				"wa_get_devices_ms", resp.DebugTimings.GetDevices.Milliseconds(),
-				"wa_group_encrypt_ms", resp.DebugTimings.GroupEncrypt.Milliseconds(),
-				"wa_peer_encrypt_ms", resp.DebugTimings.PeerEncrypt.Milliseconds(),
-				"wa_send_ms", resp.DebugTimings.Send.Milliseconds(),
-				"wa_resp_ms", resp.DebugTimings.Resp.Milliseconds(),
-				"wa_retry_ms", resp.DebugTimings.Retry.Milliseconds(),
+
+		// Try sending with quoted reply first, fallback to non-quoted on sender key errors
+		sendWithFallback := func(msg *waE2E.Message) error {
+			sendStart := time.Now()
+			resp, err := b.client.SendMessage(ctx, evt.Info.Chat, msg)
+			sendElapsed := time.Since(sendStart)
+			totalElapsed := time.Since(start)
+			if err != nil {
+				// Check if it's a sender key error - retry without quoting
+				errStr := err.Error()
+				if strings.Contains(errStr, "sender key") || strings.Contains(errStr, "senderKey") {
+					// Retry without quoted context for any message type
+					fallbackMsg := StripQuotedContext(msg)
+					if b.logger != nil {
+						b.logger.Warn("sender key error, retrying without quote", "chat", evt.Info.Chat.String(), "error", err)
+					}
+					resp, err = b.client.SendMessage(ctx, evt.Info.Chat, fallbackMsg)
+					sendElapsed = time.Since(sendStart)
+					totalElapsed = time.Since(start)
+					msg = fallbackMsg // Use fallback msg for logging/remember
+				}
+				if err != nil {
+					return fmt.Errorf("send quoted reply: %w", err)
+				}
 			}
-			if totalElapsed >= 500*time.Millisecond {
-				b.logger.Info("slow WhatsApp reply timing", attrs...)
-			} else {
-				b.logger.Debug("WhatsApp reply timing", attrs...)
+			if b.logger != nil {
+				attrs := []any{
+					"chat", evt.Info.Chat.String(),
+					"message_id", string(evt.Info.ID),
+					"total_ms", totalElapsed.Milliseconds(),
+					"send_ms", sendElapsed.Milliseconds(),
+					"wa_queue_ms", resp.DebugTimings.Queue.Milliseconds(),
+					"wa_get_devices_ms", resp.DebugTimings.GetDevices.Milliseconds(),
+					"wa_group_encrypt_ms", resp.DebugTimings.GroupEncrypt.Milliseconds(),
+					"wa_peer_encrypt_ms", resp.DebugTimings.PeerEncrypt.Milliseconds(),
+					"wa_send_ms", resp.DebugTimings.Send.Milliseconds(),
+					"wa_resp_ms", resp.DebugTimings.Resp.Milliseconds(),
+					"wa_retry_ms", resp.DebugTimings.Retry.Milliseconds(),
+				}
+				if totalElapsed >= 500*time.Millisecond {
+					b.logger.Info("slow WhatsApp reply timing", attrs...)
+				} else {
+					b.logger.Debug("WhatsApp reply timing", attrs...)
+				}
 			}
+			b.rememberSoundSticker(ctx, evt.Info.Chat.String(), string(resp.ID), msg)
+			return nil
 		}
-		b.rememberSoundSticker(ctx, evt.Info.Chat.String(), string(resp.ID), outgoing)
-		return nil
+
+		return sendWithFallback(outgoing)
 	}
 	return b.processor.Handle(ctx, message, reply)
 }

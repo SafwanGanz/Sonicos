@@ -2,12 +2,14 @@ package plugins
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -70,25 +72,29 @@ func downloadYTDLP(ctx context.Context, message command.Message, args []string, 
 	if format == "mp3" {
 		outputTemplate = filepath.Join(tmpDir, "%(title)s.%(ext)s")
 		ytArgs = []string{
-			"-f", "bestaudio[ext=m4a]/bestaudio",
+			"-f", "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
 			"--extract-audio",
 			"--audio-format", "mp3",
 			"--audio-quality", "0",
 			"-o", outputTemplate,
 			"--no-playlist",
 			"--no-warnings",
+			"--ignore-errors",
 			rawURL,
 		}
 	} else {
-		// MP4: best video+audio merged, under 25MB (WhatsApp limit)
+		// MP4: Force re-encode to H.264/AAC with proper MP4 container for WhatsApp
 		outputTemplate = filepath.Join(tmpDir, "%(title)s.%(ext)s")
 		ytArgs = []string{
-			"-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best[filesize<25M]/worst[ext=mp4]",
+			"-f", "bestvideo+bestaudio/best",
+			"-S", "vcodec:h264,acodec:aac,res:720,filesize",
+			"--recode-video", "mp4",
+			"--postprocessor-args", "ffmpeg:-movflags +faststart -c:v libx264 -profile:v high -level 4.0 -preset fast -c:a aac -b:a 128k",
 			"--max-filesize", "25M",
-			"--merge-output-format", "mp4",
 			"-o", outputTemplate,
 			"--no-playlist",
 			"--no-warnings",
+			"--ignore-errors",
 			rawURL,
 		}
 	}
@@ -102,8 +108,15 @@ func downloadYTDLP(ctx context.Context, message command.Message, args []string, 
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		slog.Error("yt-dlp failed", "format", format, "error", err, "output", string(output))
-		return reply(ctx, command.Reply{Text: fmt.Sprintf("Download failed: %v", err)})
+		errMsg := string(output)
+		slog.Error("yt-dlp failed", "format", format, "error", err, "output", errMsg)
+		
+		// Try fallback for MP4 if first attempt fails
+		if format == "mp4" && strings.Contains(errMsg, "Requested format is not available") {
+			return tryMP4Fallback(dlCtx, tmpDir, rawURL, reply)
+		}
+		
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Download failed: %v\n%s", err, truncateOutput(errMsg))})
 	}
 
 	// Find downloaded file
@@ -140,6 +153,16 @@ func downloadYTDLP(ctx context.Context, message command.Message, args []string, 
 		return reply(ctx, command.Reply{Text: "Failed to read downloaded file"})
 	}
 
+	// Extract video metadata (duration, width, height) using ffprobe
+	var durationSec uint32
+	var width, height uint32
+	if format == "mp4" {
+		durationSec, width, height = getVideoMetadata(downloadedFile)
+		if durationSec == 0 {
+			durationSec = 1 // fallback
+		}
+	}
+
 	// Extract title from filename
 	title := strings.TrimSuffix(filepath.Base(downloadedFile), filepath.Ext(downloadedFile))
 	if format == "mp3" {
@@ -163,8 +186,97 @@ func downloadYTDLP(ctx context.Context, message command.Message, args []string, 
 		Video: &command.VideoReply{
 			Data:    data,
 			Caption: caption,
+			Seconds: durationSec,
+			Width:   width,
+			Height:  height,
 		},
 	})
+}
+
+func tryMP4Fallback(ctx context.Context, tmpDir, rawURL string, reply command.ReplyFunc) error {
+	// Fallback: try with simpler format selection but still force re-encode
+	outputTemplate := filepath.Join(tmpDir, "%(title)s.%(ext)s")
+	ytArgs := []string{
+		"-f", "best[ext=mp4]/best",
+		"--recode-video", "mp4",
+		"--postprocessor-args", "ffmpeg:-movflags +faststart -c:v libx264 -profile:v high -level 4.0 -preset fast -c:a aac -b:a 128k",
+		"--max-filesize", "25M",
+		"-o", outputTemplate,
+		"--no-playlist",
+		"--no-warnings",
+		"--ignore-errors",
+		rawURL,
+	}
+
+	cmd := exec.CommandContext(ctx, "yt-dlp", ytArgs...)
+	cmd.Dir = tmpDir
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Error("yt-dlp fallback failed", "error", err, "output", string(output))
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("Download failed (fallback): %v", err)})
+	}
+
+	// Find downloaded file
+	files, err := os.ReadDir(tmpDir)
+	if err != nil {
+		return reply(ctx, command.Reply{Text: "Failed to read downloaded file"})
+	}
+
+	var downloadedFile string
+	for _, f := range files {
+		if !f.IsDir() {
+			downloadedFile = filepath.Join(tmpDir, f.Name())
+			break
+		}
+	}
+
+	if downloadedFile == "" {
+		return reply(ctx, command.Reply{Text: "No file downloaded"})
+	}
+
+	info, err := os.Stat(downloadedFile)
+	if err != nil {
+		return reply(ctx, command.Reply{Text: "Failed to stat downloaded file"})
+	}
+
+	if info.Size() > maxFileSize {
+		return reply(ctx, command.Reply{Text: fmt.Sprintf("File too large (%s). WhatsApp limit is 25 MB.", formatSize(info.Size()))})
+	}
+
+	data, err := os.ReadFile(downloadedFile)
+	if err != nil {
+		return reply(ctx, command.Reply{Text: "Failed to read downloaded file"})
+	}
+
+	// Extract video metadata
+	durationSec, width, height := getVideoMetadata(downloadedFile)
+	if durationSec == 0 {
+		durationSec = 1
+	}
+
+	title := strings.TrimSuffix(filepath.Base(downloadedFile), filepath.Ext(downloadedFile))
+	title = strings.TrimSuffix(title, ".mp4")
+
+	caption := fmt.Sprintf("%s\n📥 MP4 via Sonicos", title)
+
+	return reply(ctx, command.Reply{
+		Video: &command.VideoReply{
+			Data:    data,
+			Caption: caption,
+			Seconds: durationSec,
+			Width:   width,
+			Height:  height,
+		},
+	})
+}
+
+func truncateOutput(s string) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) > 5 {
+		return strings.Join(lines[:5], "\n") + "\n... (truncated)"
+	}
+	return s
 }
 
 func isValidYouTubeURL(rawURL string) bool {
@@ -189,6 +301,45 @@ func formatSize(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// getVideoMetadata extracts duration, width, and height from a video file using ffprobe
+func getVideoMetadata(filePath string) (durationSec uint32, width, height uint32) {
+	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
+		"-show_entries", "stream=width,height,duration", "-of", "json", filePath)
+	output, err := cmd.Output()
+	if err != nil {
+		slog.Warn("ffprobe failed", "error", err, "file", filePath)
+		return 0, 0, 0
+	}
+
+	var result struct {
+		Streams []struct {
+			Width    int     `json:"width"`
+			Height   int     `json:"height"`
+			Duration string  `json:"duration"`
+		} `json:"streams"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		slog.Warn("failed to parse ffprobe output", "error", err)
+		return 0, 0, 0
+	}
+
+	if len(result.Streams) > 0 {
+		stream := result.Streams[0]
+		if stream.Width > 0 && stream.Height > 0 {
+			width = uint32(stream.Width)
+			height = uint32(stream.Height)
+		}
+		if stream.Duration != "" {
+			if d, err := strconv.ParseFloat(stream.Duration, 64); err == nil {
+				durationSec = uint32(d)
+			}
+		}
+	}
+
+	return durationSec, width, height
 }
 
 // Check if yt-dlp is available

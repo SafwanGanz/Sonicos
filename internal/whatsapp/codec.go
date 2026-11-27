@@ -180,3 +180,39 @@ func unwrapStickerMessage(message *waE2E.Message, viaAudioWrapper bool, depth in
 	}
 	return nil, false
 }
+
+// StripQuotedContext returns a copy of the message without quoted message context.
+// Used to retry sending when sender key distribution fails for quoted replies in groups.
+func StripQuotedContext(msg *waE2E.Message) *waE2E.Message {
+	if msg == nil {
+		return nil
+	}
+	// Clone the message to avoid modifying the original
+	cloned := proto.Clone(msg).(*waE2E.Message)
+
+	// Strip ContextInfo with QuotedMessage from all message types that support it
+	for _, target := range []*waE2E.ContextInfo{
+		cloned.GetExtendedTextMessage().GetContextInfo(),
+		cloned.GetImageMessage().GetContextInfo(),
+		cloned.GetVideoMessage().GetContextInfo(),
+		cloned.GetPtvMessage().GetContextInfo(),
+		cloned.GetAudioMessage().GetContextInfo(),
+		cloned.GetDocumentMessage().GetContextInfo(),
+		cloned.GetStickerMessage().GetContextInfo(),
+	} {
+		if target != nil {
+			target.QuotedMessage = nil
+		}
+	}
+
+	// Also handle AudioStickerMessage which has nested StickerMessage
+	if cloned.GetAudioStickerMessage() != nil && cloned.GetAudioStickerMessage().GetMessage() != nil {
+		if stickerMsg := cloned.GetAudioStickerMessage().GetMessage().GetStickerMessage(); stickerMsg != nil {
+			if ctx := stickerMsg.GetContextInfo(); ctx != nil {
+				ctx.QuotedMessage = nil
+			}
+		}
+	}
+
+	return cloned
+}
