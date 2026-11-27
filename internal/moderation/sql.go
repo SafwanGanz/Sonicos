@@ -115,6 +115,12 @@ func (s *SQLStore) initSchema(ctx context.Context) error {
 			payload TEXT NOT NULL,
 			PRIMARY KEY (owner_id, emoji_key)
 		)`,
+		`CREATE TABLE IF NOT EXISTS sonicos_welcome_settings (
+			group_jid TEXT PRIMARY KEY,
+			enabled INTEGER NOT NULL DEFAULT 0,
+			custom_text TEXT NOT NULL DEFAULT '',
+			updated_at BIGINT NOT NULL
+		)`,
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
@@ -742,4 +748,52 @@ func (s *SQLStore) ListReactionStickers(ctx context.Context, ownerID string) ([]
 		return out[i].Emoji < out[j].Emoji
 	})
 	return out, nil
+}
+
+type WelcomeSettings struct {
+	Enabled    bool
+	CustomText string
+}
+
+func (s *SQLStore) GetWelcomeSettings(ctx context.Context, groupJID string) (WelcomeSettings, error) {
+	var enabled int
+	var customText string
+	err := s.db.QueryRowContext(ctx, s.rebind(`
+		SELECT enabled, custom_text FROM sonicos_welcome_settings WHERE group_jid = ?
+	`), groupJID).Scan(&enabled, &customText)
+	if errors.Is(err, sql.ErrNoRows) {
+		return WelcomeSettings{Enabled: false, CustomText: ""}, nil
+	}
+	if err != nil {
+		return WelcomeSettings{}, fmt.Errorf("get welcome settings: %w", err)
+	}
+	return WelcomeSettings{Enabled: enabled == 1, CustomText: customText}, nil
+}
+
+func (s *SQLStore) SetWelcomeEnabled(ctx context.Context, groupJID string, enabled bool) error {
+	now := time.Now().Unix()
+	val := 0
+	if enabled {
+		val = 1
+	}
+	if _, err := s.db.ExecContext(ctx, s.rebind(`
+		INSERT INTO sonicos_welcome_settings (group_jid, enabled, custom_text, updated_at)
+		VALUES (?, ?, '', ?)
+		ON CONFLICT (group_jid) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at
+	`), groupJID, val, now); err != nil {
+		return fmt.Errorf("set welcome enabled: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLStore) SetWelcomeCustomText(ctx context.Context, groupJID, text string) error {
+	now := time.Now().Unix()
+	if _, err := s.db.ExecContext(ctx, s.rebind(`
+		INSERT INTO sonicos_welcome_settings (group_jid, enabled, custom_text, updated_at)
+		VALUES (?, 0, ?, ?)
+		ON CONFLICT (group_jid) DO UPDATE SET custom_text = excluded.custom_text, updated_at = excluded.updated_at
+	`), groupJID, text, now); err != nil {
+		return fmt.Errorf("set welcome custom text: %w", err)
+	}
+	return nil
 }

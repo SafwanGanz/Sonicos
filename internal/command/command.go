@@ -44,6 +44,7 @@ type ModerationStore interface {
 	GetReactionSticker(ctx context.Context, ownerID, emoji string) (SavedReactionSticker, bool, error)
 	DeleteReactionSticker(ctx context.Context, ownerID, emoji string) (bool, error)
 	ListReactionStickers(ctx context.Context, ownerID string) ([]SavedReactionSticker, error)
+	SetWelcomeEnabled(ctx context.Context, groupJID string, enabled bool) error
 }
 
 type SavedReactionSticker struct {

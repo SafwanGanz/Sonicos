@@ -39,6 +39,7 @@ func init() {
 		{Name: "tagall", Aliases: []string{"everyone"}, Category: "Group (Admins)", Description: "Mention all group members", Handler: tagAll},
 		{Name: "unlock", Category: "Group (Admins)", Description: "Allow all members to edit group info", Handler: unlockGroup},
 		{Name: "unmute", Category: "Group (Admins)", Description: "Allow all members to send messages", Handler: unmuteGroup},
+		{Name: "welcome", Category: "Group (Admins)", Description: "Toggle welcome messages: on or off", Handler: setWelcome},
 	} {
 		command.Register(cmd)
 	}
@@ -572,4 +573,30 @@ func formatEphemeral(seconds uint32) string {
 	default:
 		return fmt.Sprintf("%d seconds", seconds)
 	}
+}
+
+func setWelcome(ctx context.Context, msg command.Message, args []string, reply command.ReplyFunc) error {
+	if _, ok, err := requireGroupAdmin(ctx, msg, reply, false); !ok || err != nil {
+		return err
+	}
+	if len(args) == 0 {
+		return reply(ctx, command.Reply{Text: "Usage: !welcom <on|off>"})
+	}
+	var enabled bool
+	switch strings.ToLower(args[0]) {
+	case "on", "true", "enable":
+		enabled = true
+	case "off", "false", "disable":
+		enabled = false
+	default:
+		return reply(ctx, command.Reply{Text: "Usage: !welcom <on|off>"})
+	}
+	if msg.ModerationStore == nil {
+		return reply(ctx, command.Reply{Text: "Welcome settings storage is unavailable."})
+	}
+	if err := msg.ModerationStore.SetWelcomeEnabled(ctx, msg.Chat, enabled); err != nil {
+		slog.Error("set welcome enabled", "chat", msg.Chat, "error", err)
+		return reply(ctx, command.Reply{Text: "Couldn't update welcome setting."})
+	}
+	return reply(ctx, command.Reply{Text: fmt.Sprintf("Welcome messages turned %s.", boolLabel(enabled, "on", "off"))})
 }

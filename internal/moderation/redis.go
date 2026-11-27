@@ -462,3 +462,28 @@ func (s *RedisStore) ListReactionStickers(ctx context.Context, ownerID string) (
 	})
 	return out, nil
 }
+
+func (s *RedisStore) SetWelcomeEnabled(ctx context.Context, groupJID string, enabled bool) error {
+	val := "0"
+	if enabled {
+		val = "1"
+	}
+	key := "sonicos:mod:welcome:" + groupJID
+	return s.client.Set(ctx, key, val, 0).Err()
+}
+
+func (s *RedisStore) GetWelcomeSettings(ctx context.Context, groupJID string) (WelcomeSettings, error) {
+	enabled, err := s.client.Get(ctx, "sonicos:mod:welcome:"+groupJID).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return WelcomeSettings{}, fmt.Errorf("get welcome settings: %w", err)
+	}
+	customText, err := s.client.Get(ctx, "sonicos:mod:welcome:text:"+groupJID).Result()
+	if err != nil && !errors.Is(err, redis.Nil) {
+		return WelcomeSettings{}, fmt.Errorf("get welcome custom text: %w", err)
+	}
+	return WelcomeSettings{Enabled: enabled == "1", CustomText: customText}, nil
+}
+
+func (s *RedisStore) SetWelcomeCustomText(ctx context.Context, groupJID, text string) error {
+	return s.client.Set(ctx, "sonicos:mod:welcome:text:"+groupJID, text, 0).Err()
+}

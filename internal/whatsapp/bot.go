@@ -12,6 +12,7 @@ import (
 
 	"github.com/SafwanGanz/Sonicos/internal/application"
 	"github.com/SafwanGanz/Sonicos/internal/command"
+	"github.com/SafwanGanz/Sonicos/internal/welcome"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types/events"
@@ -52,10 +53,15 @@ type Bot struct {
 
 	listenerMu sync.RWMutex
 	listener   EventListener
+
+	welcomeService *welcome.Service
 }
 
 func (b *Bot) SetModerationStore(store command.ModerationStore) {
 	b.moderation = store
+	if settingsStore, ok := store.(welcome.SettingsStore); ok {
+		b.welcomeService = welcome.NewService(b.client, settingsStore, b.logger)
+	}
 }
 
 // EnableFastStore wraps the underlying whatsmeow device stores with in-memory
@@ -241,7 +247,7 @@ func NewBot(store *sqlstore.Container, processor *application.Processor, workers
 	client.InitialAutoReconnect = true
 
 	now := time.Now().UTC()
-	return &Bot{
+	bot := &Bot{
 		client:               client,
 		processor:            processor,
 		groups:               newGroupServiceCache(client),
@@ -255,7 +261,9 @@ func NewBot(store *sqlstore.Container, processor *application.Processor, workers
 		acceptAfter:          now,
 		awaitingConnect:      true,
 		now:                  time.Now,
-	}, nil
+	}
+
+	return bot, nil
 }
 
 func (b *Bot) Run(ctx context.Context) error {
@@ -357,6 +365,11 @@ func (b *Bot) handleEvent(ctx context.Context) whatsmeow.EventHandler {
 		case *events.GroupInfo:
 			if evt != nil && b.groups != nil {
 				b.groups.Invalidate(evt.JID.String())
+			}
+			if evt != nil && b.welcomeService != nil {
+				if err := b.welcomeService.HandleGroupInfo(ctx, evt); err != nil {
+					b.logger.Error("handle welcome", "group", evt.JID.String(), "error", err)
+				}
 			}
 		case *events.Connected:
 			if b.logger != nil {
