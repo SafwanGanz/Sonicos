@@ -40,10 +40,10 @@ func (s *BilibiliService) Extract(ctx context.Context, urlStr string) ([]Downloa
 	var data struct {
 		Code int `json:"code"`
 		Data struct {
-			BVID       string `json:"bvid"`
-			Title      string `json:"title"`
-			Duration   int    `json:"duration"`
-			Owner      struct {
+			BVID     string `json:"bvid"`
+			Title    string `json:"title"`
+			Duration int    `json:"duration"`
+			Owner    struct {
 				Name string `json:"name"`
 			} `json:"owner"`
 			Pic string `json:"pic"`
@@ -75,29 +75,29 @@ func (s *BilibiliService) Extract(ctx context.Context, urlStr string) ([]Downloa
 	var playData struct {
 		Code int `json:"code"`
 		Data struct {
-			Quality int `json:"quality"`
+			Quality int    `json:"quality"`
 			Format  string `json:"format"`
 			Durl    []struct {
-				URL      string `json:"url"`
-				Size     int64  `json:"size"`
-				Length   int    `json:"length"`
-				Order    int    `json:"order"`
+				URL    string `json:"url"`
+				Size   int64  `json:"size"`
+				Length int    `json:"length"`
+				Order  int    `json:"order"`
 			} `json:"durl"`
 			Dash struct {
 				Duration int `json:"duration"`
 				Video    []struct {
-					ID       int    `json:"id"`
-					BaseURL  string `json:"baseUrl"`
+					ID        int      `json:"id"`
+					BaseURL   string   `json:"baseUrl"`
 					BackupURL []string `json:"backupUrl"`
-					Width    int    `json:"width"`
-					Height   int    `json:"height"`
-					Codecs   string `json:"codecs"`
+					Width     int      `json:"width"`
+					Height    int      `json:"height"`
+					Codecs    string   `json:"codecs"`
 				} `json:"video"`
 				Audio []struct {
-					ID       int    `json:"id"`
-					BaseURL  string `json:"baseUrl"`
+					ID        int      `json:"id"`
+					BaseURL   string   `json:"baseUrl"`
 					BackupURL []string `json:"backupUrl"`
-					Codecs   string `json:"codecs"`
+					Codecs    string   `json:"codecs"`
 				} `json:"audio"`
 			} `json:"dash"`
 		} `json:"data"`
@@ -120,22 +120,22 @@ func (s *BilibiliService) Extract(ctx context.Context, urlStr string) ([]Downloa
 			}
 			quality := s.parseQuality(v.ID, v.Height)
 			result := DownloadResult{
-				URL:        v.BaseURL,
-				Title:      title,
-				MediaType:  MediaTypeVideo,
-				Quality:    quality,
-				Extension:  "mp4",
-				Duration:   playData.Data.Dash.Duration,
-				Thumbnail:  video.Pic,
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s_%dp.mp4", title, v.Height),
+				URL:       v.BaseURL,
+				Title:     title,
+				MediaType: MediaTypeVideo,
+				Quality:   quality,
+				Extension: "mp4",
+				Duration:  playData.Data.Dash.Duration,
+				Thumbnail: video.Pic,
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s_%dp.mp4", title, v.Height),
 				Metadata: map[string]string{
-					"service":  "bilibili",
-					"bvid":     bvid,
-					"cid":      fmt.Sprintf("%d", video.CID),
-					"author":   video.Owner.Name,
-					"quality":  fmt.Sprintf("%dp", v.Height),
-					"codecs":   v.Codecs,
+					"service": "bilibili",
+					"bvid":    bvid,
+					"cid":     fmt.Sprintf("%d", video.CID),
+					"author":  video.Owner.Name,
+					"quality": fmt.Sprintf("%dp", v.Height),
+					"codecs":  v.Codecs,
 				},
 			}
 			if v.Width > 0 && v.Height > 0 {
@@ -150,15 +150,15 @@ func (s *BilibiliService) Extract(ctx context.Context, urlStr string) ([]Downloa
 				continue
 			}
 			result := DownloadResult{
-				URL:        d.URL,
-				Title:      title,
-				MediaType:  MediaTypeVideo,
-				Quality:    QualityBest,
-				Extension:  "flv",
-				Duration:   d.Length,
-				Thumbnail:  video.Pic,
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s.flv", title),
+				URL:       d.URL,
+				Title:     title,
+				MediaType: MediaTypeVideo,
+				Quality:   QualityBest,
+				Extension: "flv",
+				Duration:  d.Length,
+				Thumbnail: video.Pic,
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s.flv", title),
 				Metadata: map[string]string{
 					"service": "bilibili",
 					"bvid":    bvid,

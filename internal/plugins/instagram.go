@@ -37,14 +37,13 @@ func instagramHandler(ctx context.Context, message command.Message, args []strin
 		return reply(ctx, command.Reply{Text: "Please provide a valid Instagram URL"})
 	}
 
-	// Try direct API first
 	dl := downloader.NewDownloader(30 * time.Second)
 	defer dl.Close()
 
 	results, err := dl.Extract(ctx, rawURL)
 	if err != nil {
 		slog.Warn("instagram direct API failed, trying yt-dlp", "url", rawURL, "error", err)
-		// Fallback to yt-dlp
+
 		return downloadInstagramWithYTDLP(ctx, rawURL, reply)
 	}
 
@@ -157,16 +156,15 @@ func downloadInstagramWithYTDLP(ctx context.Context, url string, reply command.R
 		return reply(ctx, command.Reply{Text: fmt.Sprintf("Failed to read downloaded file: %v", err)})
 	}
 
-	// Determine if it's video or image based on extension
 	ext := strings.ToLower(filepath.Ext(downloadedFile))
 	if ext == ".mp4" || ext == ".mov" || ext == ".webm" {
 		return reply(ctx, command.Reply{
 			Video: &command.VideoReply{
-				Data:     data,
-				Caption:  "Instagram via Sonicos",
-				Seconds:  0,
-				Width:    0,
-				Height:   0,
+				Data:    data,
+				Caption: "Instagram via Sonicos",
+				Seconds: 0,
+				Width:   0,
+				Height:  0,
 			},
 		})
 	}

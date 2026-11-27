@@ -37,19 +37,19 @@ func DefaultTheme() Theme {
 }
 
 type Options struct {
-	Width       int
-	Height      int
-	Scale       int
-	Username    string
-	ServerName  string
-	WelcomeText string
-	AvatarImage image.Image
-	AvatarBytes []byte
-	AvatarURL   string
-	Theme       Theme
-	FontRegular []byte
-	FontBold    []byte
-	HTTPClient  *http.Client
+	Width         int
+	Height        int
+	Scale         int
+	Username      string
+	ServerName    string
+	WelcomeText   string
+	AvatarImage   image.Image
+	AvatarBytes   []byte
+	AvatarURL     string
+	Theme         Theme
+	FontRegular   []byte
+	FontBold      []byte
+	HTTPClient    *http.Client
 	OnAvatarError func(err error)
 }
 

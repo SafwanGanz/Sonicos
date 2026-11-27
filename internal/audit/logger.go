@@ -14,7 +14,6 @@ import (
 	"time"
 )
 
-// Entry represents a single tamper-evident structured audit event.
 type Entry struct {
 	ID        string         `json:"id"`
 	TS        string         `json:"ts"`
@@ -32,7 +31,6 @@ type Entry struct {
 	Hash      string         `json:"hash"`
 }
 
-// Logger records structured, hash-chained audit events and forwards them to slog.
 type Logger struct {
 	mu         sync.Mutex
 	slogger    *slog.Logger
@@ -43,7 +41,6 @@ type Logger struct {
 	seq        atomic.Uint64
 }
 
-// New creates a new structured audit Logger with a bounded in-memory ring buffer.
 func New(slogger *slog.Logger, maxEntries int) *Logger {
 	if maxEntries <= 0 {
 		maxEntries = 1000
@@ -56,8 +53,6 @@ func New(slogger *slog.Logger, maxEntries int) *Logger {
 	}
 }
 
-// Record appends a hash-chained audit entry and writes it as structured JSON to slog.
-// Callers must never pass raw passwords, session tokens, or QR secrets in message or metadata.
 func (l *Logger) Record(eventType, level, actor, resource, action, result, sourceIP, message string, metadata map[string]any) Entry {
 	cleanMeta := sanitizeMetadata(metadata)
 	seq := l.seq.Add(1)
@@ -120,7 +115,6 @@ func (l *Logger) Record(eventType, level, actor, resource, action, result, sourc
 	return entry
 }
 
-// List returns filtered audit entries ordered newest-first alongside the total match count.
 func (l *Logger) List(q, level, eventType string, page, pageSize int) ([]Entry, int) {
 	if page < 1 {
 		page = 1
@@ -168,7 +162,6 @@ func (l *Logger) List(q, level, eventType string, page, pageSize int) ([]Entry, 
 	return filtered[start:end], total
 }
 
-// VerifyChain validates the SHA-256 hash chain over chronological entries (oldest to newest).
 func VerifyChain(entries []Entry) bool {
 	if len(entries) == 0 {
 		return true
@@ -187,7 +180,6 @@ func VerifyChain(entries []Entry) bool {
 	return true
 }
 
-// ClientIP extracts a sanitized client IP from proxy headers or RemoteAddr.
 func ClientIP(r *http.Request) string {
 	if r == nil {
 		return ""
@@ -210,7 +202,6 @@ func ClientIP(r *http.Request) string {
 	return sanitizeIP(r.RemoteAddr)
 }
 
-// MaskPhone masks all but the last 4 digits of a phone number for safe audit logging.
 func MaskPhone(phone string) string {
 	var digits strings.Builder
 	for _, r := range phone {
@@ -278,7 +269,7 @@ func sanitizeIP(s string) string {
 	if ip := net.ParseIP(clean); ip != nil {
 		return ip.String()
 	}
-	// Strip whitespace/invalid chars if non-standard address
+
 	clean = strings.ReplaceAll(clean, " ", "")
 	return clean
 }

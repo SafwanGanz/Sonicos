@@ -147,7 +147,6 @@ func TestTTSListVoicesPaginationAndSynthesizeFlagSafety(t *testing.T) {
 		ttsReg.mu.Unlock()
 	})
 
-	// Build 30 voices so page 2 is populated (25 per page).
 	voices := make([]ttsVoice, 30)
 	for i := range voices {
 		name := "en-US-Voice" + string(rune('A'+i/26)) + string(rune('a'+i%26)) + "Neural"
@@ -181,7 +180,6 @@ func TestTTSListVoicesPaginationAndSynthesizeFlagSafety(t *testing.T) {
 		t.Fatalf("expected page 2/2 output, got: %v", replies)
 	}
 
-	// Verify synthesizeTTS passes text via --file instead of --text so leading '-' is safe.
 	scriptDir := t.TempDir()
 	script := filepath.Join(scriptDir, "fake-edge-tts")
 	body := `#!/bin/sh

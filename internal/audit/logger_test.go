@@ -28,19 +28,16 @@ func TestLoggerHashChainAndStructuredJSON(t *testing.T) {
 		t.Fatalf("newline not sanitized: msg=%q ip=%q", e1.Message, e1.SourceIP)
 	}
 
-	// Verify chronological chain integrity
 	if !VerifyChain([]Entry{e1, e2}) {
 		t.Fatal("VerifyChain failed on valid chain")
 	}
 
-	// Tamper detection
 	tampered := e2
 	tampered.Message = "forged"
 	if VerifyChain([]Entry{e1, tampered}) {
 		t.Fatal("VerifyChain did not detect tampering")
 	}
 
-	// Verify structured JSON emitted to slog
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 JSON log lines, got %d", len(lines))

@@ -24,7 +24,7 @@ func NewTikTokService(client *HTTPClient) *TikTokService {
 
 func (s *TikTokService) Extract(ctx context.Context, urlStr string) ([]DownloadResult, error) {
 	urlStr = s.cleanURL(urlStr)
-	
+
 	videoID := s.extractVideoID(urlStr)
 	if videoID == "" {
 		return nil, fmt.Errorf("could not extract video ID")
@@ -44,10 +44,10 @@ func (s *TikTokService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 		StatusCode int `json:"status_code"`
 		ItemInfo   struct {
 			ItemStruct struct {
-				ID       string `json:"id"`
-				Desc     string `json:"desc"`
-				CreateTime int64 `json:"createTime"`
-				Video    struct {
+				ID         string `json:"id"`
+				Desc       string `json:"desc"`
+				CreateTime int64  `json:"createTime"`
+				Video      struct {
 					ID           string `json:"id"`
 					Height       int    `json:"height"`
 					Width        int    `json:"width"`
@@ -66,10 +66,10 @@ func (s *TikTokService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 					CoverMedium string `json:"coverMedium"`
 				} `json:"music"`
 				Author struct {
-					ID        string `json:"id"`
-					UniqueID  string `json:"uniqueId"`
-					Nickname  string `json:"nickname"`
-					Avatar    string `json:"avatarLarger"`
+					ID       string `json:"id"`
+					UniqueID string `json:"uniqueId"`
+					Nickname string `json:"nickname"`
+					Avatar   string `json:"avatarLarger"`
 				} `json:"author"`
 			} `json:"itemStruct"`
 		} `json:"itemInfo"`
@@ -111,9 +111,9 @@ func (s *TikTokService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 		DirectURL: true,
 		Filename:  fmt.Sprintf("%s.mp4", sanitizeFilename(title)),
 		Metadata: map[string]string{
-			"service":    "tiktok",
-			"video_id":   videoID,
-			"author":     item.Author.UniqueID,
+			"service":     "tiktok",
+			"video_id":    videoID,
+			"author":      item.Author.UniqueID,
 			"author_name": item.Author.Nickname,
 		},
 	}

@@ -31,21 +31,21 @@ type fakeBot struct {
 	lastPhone      string
 }
 
-func (f *fakeBot) ClientState() string          { return f.state }
-func (f *fakeBot) DeviceID() *types.JID         { return f.deviceID }
-func (f *fakeBot) ConnectedSince() time.Time    { return f.connectedSince }
+func (f *fakeBot) ClientState() string                  { return f.state }
+func (f *fakeBot) DeviceID() *types.JID                 { return f.deviceID }
+func (f *fakeBot) ConnectedSince() time.Time            { return f.connectedSince }
 func (f *fakeBot) QRCode() (whatsapp.QRSnapshot, error) { return f.qrSnap, f.qrErr }
-func (f *fakeBot) RefreshQR() error             { return f.refreshErr }
+func (f *fakeBot) RefreshQR() error                     { return f.refreshErr }
 func (f *fakeBot) RequestPairing(_ context.Context, cc, phone string) (string, time.Time, error) {
 	f.lastCountry = cc
 	f.lastPhone = phone
 	return f.pairCode, f.pairExpiry, f.pairErr
 }
-func (f *fakeBot) Reconnect() error                   { return nil }
-func (f *fakeBot) Disconnect() error                  { f.state = "disconnected"; return nil }
-func (f *fakeBot) Unlink() error                      { f.state = "disconnected"; f.deviceID = nil; return nil }
-func (f *fakeBot) ListGroups() []whatsapp.GroupInfo   { return nil }
-func (f *fakeBot) GetGroup(string) *whatsapp.GroupInfo { return nil }
+func (f *fakeBot) Reconnect() error                           { return nil }
+func (f *fakeBot) Disconnect() error                          { f.state = "disconnected"; return nil }
+func (f *fakeBot) Unlink() error                              { f.state = "disconnected"; f.deviceID = nil; return nil }
+func (f *fakeBot) ListGroups() []whatsapp.GroupInfo           { return nil }
+func (f *fakeBot) GetGroup(string) *whatsapp.GroupInfo        { return nil }
 func (f *fakeBot) ListUsers() []whatsapp.GroupParticipantInfo { return nil }
 
 func newTestServer(bot BotClient, password string, origins []string) (*Server, *audit.Logger) {
@@ -83,7 +83,6 @@ func TestIndexHealthAndAuthEnforcement(t *testing.T) {
 	srv, _ := newTestServer(bot, "Secr3tPass", nil)
 	h := srv.Handler()
 
-	// Embedded HTML served with security headers
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec.Code != http.StatusOK {
@@ -96,14 +95,12 @@ func TestIndexHealthAndAuthEnforcement(t *testing.T) {
 		t.Fatalf("missing security headers on /: %v", rec.Header())
 	}
 
-	// Unauthenticated health probe returns 200
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET /health status = %d", rec.Code)
 	}
 
-	// Protected routes + /auth/me reject unauthenticated requests with 401
 	for _, path := range []string{"/auth/me", "/status", "/qr", "/logs", "/events"} {
 		rec = httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
@@ -118,7 +115,6 @@ func TestLoginOpaqueCookieRateLimitAndLogout(t *testing.T) {
 	srv, aud := newTestServer(bot, "StrongPass99", nil)
 	h := srv.Handler()
 
-	// 5 failed login attempts trigger 429 on the 6th
 	for i := range rateLimitMaxFails {
 		req := httptest.NewRequest(http.MethodPost, "/auth/login", strings.NewReader(`{"password":"wrong"}`))
 		req.RemoteAddr = "203.0.113.77:9000"
@@ -136,7 +132,6 @@ func TestLoginOpaqueCookieRateLimitAndLogout(t *testing.T) {
 		t.Fatalf("6th attempt status = %d, want 429", rec.Code)
 	}
 
-	// Login from a different IP succeeds with opaque HttpOnly + Secure cookie
 	cookie := loginTestSession(t, h, "StrongPass99", true)
 	if cookie.Value == "" || cookie.Value == "StrongPass99" {
 		t.Fatalf("session cookie must be an opaque random token, got %q", cookie.Value)
@@ -145,7 +140,6 @@ func TestLoginOpaqueCookieRateLimitAndLogout(t *testing.T) {
 		t.Fatalf("expected HttpOnly=true Secure=true cookie, got %+v", cookie)
 	}
 
-	// /auth/me succeeds with cookie
 	meReq := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	meReq.AddCookie(cookie)
 	rec = httptest.NewRecorder()
@@ -154,7 +148,6 @@ func TestLoginOpaqueCookieRateLimitAndLogout(t *testing.T) {
 		t.Fatalf("GET /auth/me with cookie = %d, want 200", rec.Code)
 	}
 
-	// /auth/logout revokes session
 	outReq := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
 	outReq.AddCookie(cookie)
 	rec = httptest.NewRecorder()
@@ -163,7 +156,6 @@ func TestLoginOpaqueCookieRateLimitAndLogout(t *testing.T) {
 		t.Fatalf("POST /auth/logout = %d, want 200", rec.Code)
 	}
 
-	// Reusing revoked cookie returns 401
 	meReq2 := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	meReq2.AddCookie(cookie)
 	rec = httptest.NewRecorder()
@@ -184,7 +176,6 @@ func TestStrictCORSAndCSRF(t *testing.T) {
 	h := srv.Handler()
 	cookie := loginTestSession(t, h, "Secret123", false)
 
-	// Untrusted cross-origin mutating request rejected with 403
 	evilReq := httptest.NewRequest(http.MethodPost, "/connection/qr/refresh", nil)
 	evilReq.Host = "bot.example.com"
 	evilReq.Header.Set("Origin", "https://evil.example")
@@ -198,7 +189,6 @@ func TestStrictCORSAndCSRF(t *testing.T) {
 		t.Fatalf("untrusted origin must not receive ACAO header")
 	}
 
-	// Explicitly allowed origin receives CORS headers
 	okReq := httptest.NewRequest(http.MethodGet, "/status", nil)
 	okReq.Host = "bot.example.com"
 	okReq.Header.Set("Origin", "https://panel.example.com")
@@ -229,7 +219,6 @@ func TestQRPNGAndPhonePairing(t *testing.T) {
 	h := srv.Handler()
 	cookie := loginTestSession(t, h, "Secret123", false)
 
-	// GET /qr returns valid base64 PNG data URI
 	qrReq := httptest.NewRequest(http.MethodGet, "/qr", nil)
 	qrReq.AddCookie(cookie)
 	rec := httptest.NewRecorder()
@@ -248,7 +237,6 @@ func TestQRPNGAndPhonePairing(t *testing.T) {
 		t.Fatalf("unexpected qr response: %+v", qrResp)
 	}
 
-	// Already connected sentinel maps to 409
 	bot.qrErr = whatsapp.ErrAlreadyConnected
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, qrReq)
@@ -256,7 +244,6 @@ func TestQRPNGAndPhonePairing(t *testing.T) {
 		t.Fatalf("GET /qr when connected = %d, want 409", rec.Code)
 	}
 
-	// POST /pair returns pairing code and masks phone in audit logs
 	pairReq := httptest.NewRequest(http.MethodPost, "/pair", strings.NewReader(`{"country_code":"91","phone_number":"9876543210"}`))
 	pairReq.Header.Set("Content-Type", "application/json")
 	pairReq.AddCookie(cookie)

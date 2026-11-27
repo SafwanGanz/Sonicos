@@ -25,7 +25,7 @@ func NewTwitchService(client *HTTPClient) *TwitchService {
 
 func (s *TwitchService) Extract(ctx context.Context, urlStr string) ([]DownloadResult, error) {
 	urlStr = s.cleanURL(urlStr)
-	
+
 	if strings.Contains(urlStr, "/clip/") || strings.Contains(urlStr, "clips.twitch.tv") {
 		return s.extractClip(ctx, urlStr)
 	}
@@ -66,9 +66,9 @@ func (s *TwitchService) extractClip(ctx context.Context, urlStr string) ([]Downl
 	var data []struct {
 		Data struct {
 			Clip struct {
-				Title     string `json:"title"`
-				Thumbnail string `json:"thumbnailURL"`
-				Duration  int    `json:"durationSeconds"`
+				Title       string `json:"title"`
+				Thumbnail   string `json:"thumbnailURL"`
+				Duration    int    `json:"durationSeconds"`
 				Broadcaster struct {
 					DisplayName string `json:"displayName"`
 				} `json:"broadcaster"`
@@ -97,20 +97,20 @@ func (s *TwitchService) extractClip(ctx context.Context, urlStr string) ([]Downl
 			continue
 		}
 		result := DownloadResult{
-			URL:        vq.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    s.parseQuality(vq.Quality),
-			Extension:  "mp4",
-			Duration:   clip.Duration,
-			Thumbnail:  clip.Thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.mp4", title, vq.Quality),
+			URL:       vq.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   s.parseQuality(vq.Quality),
+			Extension: "mp4",
+			Duration:  clip.Duration,
+			Thumbnail: clip.Thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.mp4", title, vq.Quality),
 			Metadata: map[string]string{
-				"service":      "twitch",
-				"clip_slug":    clipSlug,
-				"broadcaster":  clip.Broadcaster.DisplayName,
-				"quality":      vq.Quality,
+				"service":     "twitch",
+				"clip_slug":   clipSlug,
+				"broadcaster": clip.Broadcaster.DisplayName,
+				"quality":     vq.Quality,
 			},
 		}
 		results = append(results, result)
@@ -153,10 +153,10 @@ func (s *TwitchService) extractVOD(ctx context.Context, urlStr string) ([]Downlo
 	var data []struct {
 		Data struct {
 			Video struct {
-				Title     string `json:"title"`
-				Length    int    `json:"lengthSeconds"`
-				Preview   string `json:"previewThumbnailURL"`
-				Owner     struct {
+				Title   string `json:"title"`
+				Length  int    `json:"lengthSeconds"`
+				Preview string `json:"previewThumbnailURL"`
+				Owner   struct {
 					DisplayName string `json:"displayName"`
 				} `json:"owner"`
 				PlaybackAccessToken struct {
@@ -182,22 +182,22 @@ func (s *TwitchService) extractVOD(ctx context.Context, urlStr string) ([]Downlo
 	signature := vod.PlaybackAccessToken.Signature
 
 	playlistURL := fmt.Sprintf("https://usher.ttvnw.net/vod/%s.m3u8?client_id=kimne78kx3ncx6brgo4mv6wki5h1ko&player=twitchweb&token=%s&sig=%s", vodID, url.QueryEscape(token), signature)
-	
+
 	result := DownloadResult{
-		URL:        playlistURL,
-		Title:      title,
-		MediaType:  MediaTypeVideo,
-		Quality:    QualityBest,
-		Extension:  "m3u8",
-		Duration:   vod.Length,
-		Thumbnail:  vod.Preview,
-		DirectURL:  true,
-		Filename:   fmt.Sprintf("%s.m3u8", title),
+		URL:       playlistURL,
+		Title:     title,
+		MediaType: MediaTypeVideo,
+		Quality:   QualityBest,
+		Extension: "m3u8",
+		Duration:  vod.Length,
+		Thumbnail: vod.Preview,
+		DirectURL: true,
+		Filename:  fmt.Sprintf("%s.m3u8", title),
 		Metadata: map[string]string{
-			"service":  "twitch",
-			"vod_id":   vodID,
-			"owner":    vod.Owner.DisplayName,
-			"type":     "vod",
+			"service": "twitch",
+			"vod_id":  vodID,
+			"owner":   vod.Owner.DisplayName,
+			"type":    "vod",
 		},
 	}
 

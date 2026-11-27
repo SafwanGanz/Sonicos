@@ -9,7 +9,6 @@ import (
 	"fmt"
 )
 
-// ExifMetadata defines the WhatsApp sticker pack metadata JSON embedded in the WebP EXIF chunk.
 type ExifMetadata struct {
 	PackID    string   `json:"sticker-pack-id"`
 	Publisher string   `json:"sticker-pack-publisher"`
@@ -25,8 +24,6 @@ func newPackID(prefix string) string {
 	return prefix + hex.EncodeToString(raw[:])
 }
 
-// InjectWebpExif embeds WhatsApp sticker pack EXIF metadata into a RIFF/WEBP buffer,
-// ensuring VP8X flags are present and returning the updated buffer and EXIF chunk byte offset.
 func InjectWebpExif(webpBuf []byte, meta ExifMetadata, width, height int) ([]byte, uint32, error) {
 	if len(webpBuf) < 12 || string(webpBuf[:4]) != "RIFF" || string(webpBuf[8:12]) != "WEBP" {
 		return nil, 0, errors.New("invalid WebP buffer: missing RIFF/WEBP header")
@@ -173,7 +170,6 @@ func InjectWebpExif(webpBuf []byte, meta ExifMetadata, width, height int) ([]byt
 	return out, exifOffset, nil
 }
 
-// FindWebpExifOffset returns the byte offset of the EXIF chunk inside a RIFF/WEBP buffer, or 0 if absent.
 func FindWebpExifOffset(webp []byte) uint32 {
 	if len(webp) < 12 || string(webp[:4]) != "RIFF" || string(webp[8:12]) != "WEBP" {
 		return 0
@@ -198,7 +194,6 @@ func FindWebpExifOffset(webp []byte) uint32 {
 	return 0
 }
 
-// CountWebpAnimFrames returns the number of ANMF chunks in a RIFF/WEBP buffer.
 func CountWebpAnimFrames(webp []byte) int {
 	if len(webp) < 12 || string(webp[:4]) != "RIFF" || string(webp[8:12]) != "WEBP" {
 		return 0
@@ -224,7 +219,6 @@ func CountWebpAnimFrames(webp []byte) int {
 	return count
 }
 
-// HasWebpAnimChunk reports whether webp contains animation chunks (ANIM/ANMF) or VP8X anim flag.
 func HasWebpAnimChunk(webp []byte) bool {
 	if len(webp) < 12 || string(webp[:4]) != "RIFF" || string(webp[8:12]) != "WEBP" {
 		return false
@@ -252,8 +246,6 @@ func HasWebpAnimChunk(webp []byte) bool {
 	return false
 }
 
-// TrimAnimatedWebp drops trailing ANMF frames (and strips any existing EXIF chunk)
-// so an oversized animated WebP sticker can still fit within maxBytes without re-encoding.
 func TrimAnimatedWebp(webp []byte, maxBytes int) ([]byte, bool) {
 	if len(webp) < 12 || string(webp[:4]) != "RIFF" || string(webp[8:12]) != "WEBP" {
 		return nil, false

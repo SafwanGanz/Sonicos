@@ -38,13 +38,13 @@ func (s *BlueskyService) Extract(ctx context.Context, urlStr string) ([]Download
 
 	var data struct {
 		Posts []struct {
-			URI   string `json:"uri"`
-			CID   string `json:"cid"`
+			URI    string `json:"uri"`
+			CID    string `json:"cid"`
 			Author struct {
 				Handle string `json:"handle"`
 			} `json:"author"`
 			Record struct {
-				Text string `json:"text"`
+				Text  string `json:"text"`
 				Embed struct {
 					Images []struct {
 						Image struct {
@@ -80,18 +80,18 @@ func (s *BlueskyService) Extract(ctx context.Context, urlStr string) ([]Download
 
 	if post.Record.Embed.Video.Playlist != "" {
 		result := DownloadResult{
-			URL:        post.Record.Embed.Video.Playlist,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    QualityBest,
-			Extension:  "m3u8",
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.m3u8", title),
+			URL:       post.Record.Embed.Video.Playlist,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   QualityBest,
+			Extension: "m3u8",
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.m3u8", title),
 			Metadata: map[string]string{
-				"service":   "bluesky",
-				"post_id":   postID,
-				"author":    post.Author.Handle,
-				"type":      "video",
+				"service": "bluesky",
+				"post_id": postID,
+				"author":  post.Author.Handle,
+				"type":    "video",
 			},
 		}
 		results = append(results, result)
@@ -108,10 +108,10 @@ func (s *BlueskyService) Extract(ctx context.Context, urlStr string) ([]Download
 				DirectURL: true,
 				Filename:  fmt.Sprintf("%s.jpg", title),
 				Metadata: map[string]string{
-					"service":  "bluesky",
-					"post_id":  postID,
-					"author":   post.Author.Handle,
-					"type":     "image",
+					"service": "bluesky",
+					"post_id": postID,
+					"author":  post.Author.Handle,
+					"type":    "image",
 				},
 			}
 			results = append(results, result)

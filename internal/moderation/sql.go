@@ -41,8 +41,6 @@ type cachedSeen struct {
 	expiresAt time.Time
 }
 
-// SQLStore persists moderation state, shields, studio staging, audio cache, and !sreact
-// libraries in SQLite3 or PostgreSQL (including Supabase) when Redis is unavailable.
 type SQLStore struct {
 	db           *sql.DB
 	isPostgres   bool
@@ -54,7 +52,6 @@ type SQLStore struct {
 	seenCache    map[string]cachedSeen
 }
 
-// NewSQLStore initializes the shared SQL tables on db and returns a SQL-backed ModerationStore.
 func NewSQLStore(ctx context.Context, db *sql.DB, driver string) (*SQLStore, error) {
 	if db == nil {
 		return nil, errors.New("sql database handle is required")

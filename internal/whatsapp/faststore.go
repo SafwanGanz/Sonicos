@@ -53,9 +53,6 @@ type outgoingBufEntry struct {
 	plaintext []byte
 }
 
-// fastDeviceContainer wraps whatsmeow's DeviceContainer so Postgres-backed devices
-// keep hot Signal/session/key stores in RAM and batch SQL writes instead of blocking
-// every send/receive on remote sequential round-trips.
 type fastDeviceContainer struct {
 	inner  store.DeviceContainer
 	db     *sql.DB
@@ -447,7 +444,6 @@ func (s *fastSessionStore) maybeSignalFlushLocked() {
 	}
 }
 
-// Flush synchronously writes all pending dirty store mutations to SQL in batched statements.
 func (s *fastSessionStore) Flush(ctx context.Context) error {
 	if s == nil || s.db == nil {
 		return nil
@@ -778,8 +774,6 @@ func (s *fastSessionStore) flushOutgoingEvents(ctx context.Context, batch map[ou
 	return nil
 }
 
-// --- SessionStore ---
-
 func (s *fastSessionStore) GetSession(ctx context.Context, address string) ([]byte, error) {
 	s.mu.RLock()
 	sess, ok := s.sessions[address]
@@ -953,8 +947,6 @@ func (s *fastSessionStore) MigratePNToLID(ctx context.Context, pn, lid types.JID
 	return nil
 }
 
-// --- IdentityStore ---
-
 func (s *fastSessionStore) IsTrustedIdentity(ctx context.Context, address string, key [32]byte) (bool, error) {
 	s.mu.RLock()
 	existing, ok := s.identities[address]
@@ -1009,8 +1001,6 @@ func (s *fastSessionStore) DeleteAllIdentities(ctx context.Context, phone string
 	return nil
 }
 
-// --- SenderKeyStore ---
-
 func (s *fastSessionStore) GetSenderKey(ctx context.Context, group, user string) ([]byte, error) {
 	id := senderKeyID{group: group, user: user}
 	s.mu.RLock()
@@ -1048,8 +1038,6 @@ func (s *fastSessionStore) PutSenderKey(_ context.Context, group, user string, s
 	s.mu.Unlock()
 	return nil
 }
-
-// --- PreKeyStore (batched multi-row prekey generation + cache) ---
 
 func (s *fastSessionStore) GetOrGenPreKeys(ctx context.Context, count uint32) ([]*keys.PreKey, error) {
 	if s.db == nil {
@@ -1154,8 +1142,6 @@ func (s *fastSessionStore) RemovePreKey(ctx context.Context, id uint32) error {
 	return s.AllSessionSpecificStores.RemovePreKey(ctx, id)
 }
 
-// --- MsgSecretStore ---
-
 func (s *fastSessionStore) PutMessageSecret(_ context.Context, chat, sender types.JID, id types.MessageID, secret []byte) error {
 	if chat.IsEmpty() || sender.IsEmpty() || id == "" || len(secret) == 0 {
 		return nil
@@ -1219,8 +1205,6 @@ func (s *fastSessionStore) GetMessageSecret(ctx context.Context, chat, sender ty
 	}
 	return secret, realSender, err
 }
-
-// --- EventBuffer ---
 
 func (s *fastSessionStore) DoDecryptionTxn(ctx context.Context, fn func(context.Context) error) error {
 	return fn(ctx)

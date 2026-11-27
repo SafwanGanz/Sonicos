@@ -24,10 +24,11 @@ func DecodeMessage(client *whatsmeow.Client, evt *events.Message) (command.Messa
 	}
 	text := extractText(evt.Message)
 	stickerInfo := extractStickerInfo(evt.Message)
-	if text == "" && stickerInfo == nil && !evt.Info.IsGroup {
+	ctxInfo := messageContextInfo(evt.Message)
+	mediaSource := newMediaSource(client, evt.Message)
+	if text == "" && stickerInfo == nil && !evt.Info.IsGroup && mediaSource == nil {
 		return command.Message{}, false
 	}
-	ctxInfo := messageContextInfo(evt.Message)
 	var mentioned []string
 	var quotedSender, quotedID string
 	if ctxInfo != nil {
@@ -52,7 +53,7 @@ func DecodeMessage(client *whatsmeow.Client, evt *events.Message) (command.Messa
 		QuotedFromMe:       quotedFromMe,
 		Sticker:            stickerInfo,
 		QuotedSticker:      extractStickerInfo(quotedMessage(evt.Message)),
-		MediaSource:        newMediaSource(client, evt.Message),
+		MediaSource:        mediaSource,
 		StickerAudioSource: newStickerAudioSource(client, evt.Message),
 		GroupService:       newGroupService(client),
 	}, true
@@ -181,16 +182,13 @@ func unwrapStickerMessage(message *waE2E.Message, viaAudioWrapper bool, depth in
 	return nil, false
 }
 
-// StripQuotedContext returns a copy of the message without quoted message context.
-// Used to retry sending when sender key distribution fails for quoted replies in groups.
 func StripQuotedContext(msg *waE2E.Message) *waE2E.Message {
 	if msg == nil {
 		return nil
 	}
-	// Clone the message to avoid modifying the original
+
 	cloned := proto.Clone(msg).(*waE2E.Message)
 
-	// Strip ContextInfo with QuotedMessage from all message types that support it
 	for _, target := range []*waE2E.ContextInfo{
 		cloned.GetExtendedTextMessage().GetContextInfo(),
 		cloned.GetImageMessage().GetContextInfo(),
@@ -205,7 +203,6 @@ func StripQuotedContext(msg *waE2E.Message) *waE2E.Message {
 		}
 	}
 
-	// Also handle AudioStickerMessage which has nested StickerMessage
 	if cloned.GetAudioStickerMessage() != nil && cloned.GetAudioStickerMessage().GetMessage() != nil {
 		if stickerMsg := cloned.GetAudioStickerMessage().GetMessage().GetStickerMessage(); stickerMsg != nil {
 			if ctx := stickerMsg.GetContextInfo(); ctx != nil {

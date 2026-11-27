@@ -41,11 +41,10 @@ func TestHasWebpAnimChunkAndTrimAnimatedWebp(t *testing.T) {
 	}
 
 	vp8x := make([]byte, 10)
-	vp8x[0] = 0x02 // animation bit
+	vp8x[0] = 0x02
 	anim := make([]byte, 6)
-	framePayload := bytes.Repeat([]byte{0xAA}, 120<<10) // ~120 KiB per frame
+	framePayload := bytes.Repeat([]byte{0xAA}, 120<<10)
 
-	// Single-frame animated WebP must still be detected by HasWebpAnimChunk.
 	oneFrameAnim := makeTestWebP(
 		makeWebpChunk("VP8X", vp8x),
 		makeWebpChunk("ANIM", anim),
@@ -55,7 +54,6 @@ func TestHasWebpAnimChunkAndTrimAnimatedWebp(t *testing.T) {
 		t.Fatal("expected 1-frame ANIM/ANMF WebP to report HasWebpAnimChunk")
 	}
 
-	// 5 frames * 120 KiB = ~600 KiB (exceeds 500 KiB limit).
 	oversizedAnim := makeTestWebP(
 		makeWebpChunk("VP8X", vp8x),
 		makeWebpChunk("ANIM", anim),
@@ -91,9 +89,7 @@ func TestHasWebpAnimChunkAndTrimAnimatedWebp(t *testing.T) {
 }
 
 func TestDubSoundSticker_RejectsOversizedSingleFrameAnimatedWebpCleanly(t *testing.T) {
-	// Verify the early animated-WebP rejection happens after trimming fails without calling ffmpeg on ANMF.
-	// Use valid empty converter and synthetic oversized 1-frame animated WebP; audio conversion runs first,
-	// so test the trimming/guard helper conditions directly and verify converter behavior cleanly.
+
 	vp8x := make([]byte, 10)
 	vp8x[0] = 0x02
 	anim := make([]byte, 6)
@@ -106,7 +102,6 @@ func TestDubSoundSticker_RejectsOversizedSingleFrameAnimatedWebpCleanly(t *testi
 		t.Fatal("expected single-frame >500 KiB animated WebP not to trim cleanly")
 	}
 
-	// Ensure non-empty static validation path remains sane.
 	c := NewConverter("ffmpeg")
 	_, err := c.DubSoundSticker(context.Background(), command.Attachment{Kind: command.MediaSticker, MIMEType: "image/webp"}, command.Attachment{Kind: command.MediaAudio, Data: []byte("x")})
 	if err == nil || !strings.Contains(err.Error(), "empty") {

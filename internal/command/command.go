@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/SafwanGanz/Sonicos/internal/aimode"
 )
 
 type StickerInfo struct {
@@ -47,6 +49,13 @@ type ModerationStore interface {
 	SetWelcomeEnabled(ctx context.Context, groupJID string, enabled bool) error
 }
 
+type AIModeStore interface {
+	GetState(ctx context.Context) (aimode.State, error)
+	SetState(ctx context.Context, enabled bool, owner string) error
+	GetGroupEnabled(ctx context.Context, groupJID string) (bool, error)
+	SetGroupEnabled(ctx context.Context, groupJID string, enabled bool) error
+}
+
 type SavedReactionSticker struct {
 	Emoji    string `json:"emoji"`
 	Data     []byte `json:"data"`
@@ -86,6 +95,7 @@ type Message struct {
 	StickerAudioSource MediaSource
 	GroupService       GroupService
 	ModerationStore    ModerationStore
+	AIModeStore        AIModeStore
 }
 
 type MediaKind string
@@ -305,6 +315,13 @@ func (r *Registry) Dispatch(ctx context.Context, prefix string, msg Message, rep
 		return false, nil
 	}
 	return true, cmd.Handler(ctx, msg, parts[1:], reply)
+}
+
+func (r *Registry) Lookup(name string) (Command, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	cmd, ok := r.commands[normalize(name)]
+	return cmd, ok
 }
 
 func (r *Registry) Commands() []Command {

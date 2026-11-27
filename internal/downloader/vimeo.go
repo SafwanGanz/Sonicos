@@ -40,9 +40,9 @@ func (s *VimeoService) Extract(ctx context.Context, urlStr string) ([]DownloadRe
 
 	var data struct {
 		Video struct {
-			Title       string `json:"title"`
-			Duration    int    `json:"duration"`
-			Thumbnails  struct {
+			Title      string `json:"title"`
+			Duration   int    `json:"duration"`
+			Thumbnails struct {
 				Base  string `json:"base"`
 				Sizes []struct {
 					Width  int    `json:"width"`
@@ -54,11 +54,11 @@ func (s *VimeoService) Extract(ctx context.Context, urlStr string) ([]DownloadRe
 		Request struct {
 			Files struct {
 				Progressive []struct {
-					URL      string `json:"url"`
-					Mime     string `json:"mime"`
-					Width    int    `json:"width"`
-					Height   int    `json:"height"`
-					Quality  string `json:"quality"`
+					URL     string `json:"url"`
+					Mime    string `json:"mime"`
+					Width   int    `json:"width"`
+					Height  int    `json:"height"`
+					Quality string `json:"quality"`
 				} `json:"progressive"`
 				HLS struct {
 					Default string `json:"default"`
@@ -92,15 +92,15 @@ func (s *VimeoService) Extract(ctx context.Context, urlStr string) ([]DownloadRe
 		}
 		quality := s.parseQualityFromLabel(prog.Quality, prog.Height)
 		result := DownloadResult{
-			URL:        prog.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    quality,
-			Extension:  "mp4",
-			Duration:   data.Video.Duration,
-			Thumbnail:  thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.mp4", title, prog.Quality),
+			URL:       prog.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   quality,
+			Extension: "mp4",
+			Duration:  data.Video.Duration,
+			Thumbnail: thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.mp4", title, prog.Quality),
 			Metadata: map[string]string{
 				"service":   "vimeo",
 				"video_id":  videoID,
@@ -116,15 +116,15 @@ func (s *VimeoService) Extract(ctx context.Context, urlStr string) ([]DownloadRe
 
 	if data.Request.Files.HLS.Default != "" {
 		result := DownloadResult{
-			URL:        data.Request.Files.HLS.Default,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    QualityBest,
-			Extension:  "m3u8",
-			Duration:   data.Video.Duration,
-			Thumbnail:  thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.m3u8", title),
+			URL:       data.Request.Files.HLS.Default,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   QualityBest,
+			Extension: "m3u8",
+			Duration:  data.Video.Duration,
+			Thumbnail: thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.m3u8", title),
 			Metadata: map[string]string{
 				"service":  "vimeo",
 				"video_id": videoID,

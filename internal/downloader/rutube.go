@@ -38,14 +38,14 @@ func (s *RutubeService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 	defer resp.Body.Close()
 
 	var data struct {
-		Title       string `json:"title"`
-		Duration    int    `json:"duration"`
-		Author      struct {
+		Title    string `json:"title"`
+		Duration int    `json:"duration"`
+		Author   struct {
 			Name string `json:"name"`
 		} `json:"author"`
-		Thumbnail   string `json:"thumbnail_url"`
-		VideoURL    string `json:"video_url"`
-		VideoM3U8   string `json:"m3u8_url"`
+		Thumbnail     string `json:"thumbnail_url"`
+		VideoURL      string `json:"video_url"`
+		VideoM3U8     string `json:"m3u8_url"`
 		VideoBalancer string `json:"video_balancer"`
 	}
 
@@ -62,20 +62,20 @@ func (s *RutubeService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 
 	if data.VideoM3U8 != "" {
 		result := DownloadResult{
-			URL:        data.VideoM3U8,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    QualityBest,
-			Extension:  "m3u8",
-			Duration:   data.Duration,
-			Thumbnail:  data.Thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.m3u8", title),
+			URL:       data.VideoM3U8,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   QualityBest,
+			Extension: "m3u8",
+			Duration:  data.Duration,
+			Thumbnail: data.Thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.m3u8", title),
 			Metadata: map[string]string{
-				"service":   "rutube",
-				"video_id":  videoID,
-				"author":    data.Author.Name,
-				"type":      "hls",
+				"service":  "rutube",
+				"video_id": videoID,
+				"author":   data.Author.Name,
+				"type":     "hls",
 			},
 		}
 		results = append(results, result)
@@ -83,20 +83,20 @@ func (s *RutubeService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 
 	if data.VideoURL != "" {
 		result := DownloadResult{
-			URL:        data.VideoURL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    QualityBest,
-			Extension:  "mp4",
-			Duration:   data.Duration,
-			Thumbnail:  data.Thumbnail,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s.mp4", title),
+			URL:       data.VideoURL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   QualityBest,
+			Extension: "mp4",
+			Duration:  data.Duration,
+			Thumbnail: data.Thumbnail,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s.mp4", title),
 			Metadata: map[string]string{
-				"service":   "rutube",
-				"video_id":  videoID,
-				"author":    data.Author.Name,
-				"type":      "mp4",
+				"service":  "rutube",
+				"video_id": videoID,
+				"author":   data.Author.Name,
+				"type":     "mp4",
 			},
 		}
 		results = append(results, result)

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/SafwanGanz/Sonicos/internal/command"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -22,8 +22,6 @@ const (
 	maxReactionLibraryEntries = 100
 )
 
-// RedisStore persists per-group sticker blacklists, user strike counters,
-// and a short-lived message-ID -> sticker-hash cache in Redis.
 type RedisStore struct {
 	client *redis.Client
 }
@@ -79,7 +77,6 @@ func (s *RedisStore) UnbanSticker(ctx context.Context, groupJID, fileSHA256, aud
 		return false, nil
 	}
 
-	// Look up stored entry so paired file+audio hashes are removed together cleanly.
 	if stored, ok, err := s.IsStickerBanned(ctx, groupJID, fileHash, audioHash); err != nil {
 		return false, err
 	} else if ok {

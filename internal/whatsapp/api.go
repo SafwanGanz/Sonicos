@@ -12,13 +12,11 @@ import (
 )
 
 var (
-	// ErrAlreadyConnected indicates WhatsApp is already linked to a device session.
 	ErrAlreadyConnected = errors.New("already connected")
-	// ErrNoQR indicates no QR payload is currently available.
+
 	ErrNoQR = errors.New("no QR available")
 )
 
-// QRSnapshot captures the latest WhatsApp QR/pairing state for the dashboard and SSE stream.
 type QRSnapshot struct {
 	Code      string
 	State     string
@@ -26,7 +24,6 @@ type QRSnapshot struct {
 	Error     string
 }
 
-// EventListener receives asynchronous WhatsApp lifecycle, QR, and pairing updates.
 type EventListener func(event string, data any)
 
 type GroupParticipant struct {
@@ -48,7 +45,6 @@ type GroupParticipantInfo struct {
 	IsAdmin    bool     `json:"is_admin"`
 }
 
-// ClientState returns the current WhatsApp connection state as a string.
 func (b *Bot) ClientState() string {
 	if b.client.IsConnected() && b.client.Store.ID != nil {
 		return "connected"
@@ -69,7 +65,6 @@ func (b *Bot) ClientState() string {
 	return "disconnected"
 }
 
-// DeviceID returns the connected device JID, or nil if not linked.
 func (b *Bot) DeviceID() *types.JID {
 	if b.client.Store.ID != nil {
 		return b.client.Store.ID
@@ -77,14 +72,12 @@ func (b *Bot) DeviceID() *types.JID {
 	return nil
 }
 
-// ConnectedSince returns when the current WhatsApp session connected, or zero if offline.
 func (b *Bot) ConnectedSince() time.Time {
 	b.pairMu.RLock()
 	defer b.pairMu.RUnlock()
 	return b.connectedAt
 }
 
-// QRCode returns the latest cached QR snapshot from the active pairing session.
 func (b *Bot) QRCode() (QRSnapshot, error) {
 	if b.client.Store.ID != nil {
 		return QRSnapshot{State: "connected"}, ErrAlreadyConnected
@@ -100,7 +93,6 @@ func (b *Bot) QRCode() (QRSnapshot, error) {
 	return snap, nil
 }
 
-// RefreshQR restarts the unauthenticated pairing session to generate a fresh QR code.
 func (b *Bot) RefreshQR() error {
 	if b.client.Store.ID != nil {
 		return ErrAlreadyConnected
@@ -108,7 +100,6 @@ func (b *Bot) RefreshQR() error {
 	return b.startPairingSession(b.baseCtx())
 }
 
-// RequestPairing initiates phone number pairing with WhatsApp and returns the 8-character code and expiry.
 func (b *Bot) RequestPairing(ctx context.Context, countryCode, phoneNumber string) (string, time.Time, error) {
 	if b.client.Store.ID != nil {
 		return "", time.Time{}, ErrAlreadyConnected
@@ -162,7 +153,6 @@ func (b *Bot) RequestPairing(ctx context.Context, countryCode, phoneNumber strin
 	return code, expiresAt, nil
 }
 
-// Reconnect attempts to reconnect the WhatsApp client.
 func (b *Bot) Reconnect() error {
 	if b.client.IsConnected() {
 		return nil
@@ -174,7 +164,6 @@ func (b *Bot) Reconnect() error {
 	return b.client.Connect()
 }
 
-// Disconnect disconnects the WhatsApp client while keeping the stored session.
 func (b *Bot) Disconnect() error {
 	b.cancelPairingSession()
 	b.client.Disconnect()
@@ -187,7 +176,6 @@ func (b *Bot) Disconnect() error {
 	return nil
 }
 
-// Unlink logs out the client, removes the session, and starts a fresh pairing session.
 func (b *Bot) Unlink() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -207,7 +195,6 @@ func (b *Bot) Unlink() error {
 	return nil
 }
 
-// ListGroups returns all groups the bot is a member of.
 func (b *Bot) ListGroups() []GroupInfo {
 	if !b.client.IsConnected() || b.client.Store.ID == nil {
 		return nil
@@ -234,7 +221,6 @@ func (b *Bot) ListGroups() []GroupInfo {
 	return out
 }
 
-// GetGroup returns information about a specific group.
 func (b *Bot) GetGroup(jid string) *GroupInfo {
 	if !b.client.IsConnected() || b.client.Store.ID == nil {
 		return nil
@@ -261,7 +247,6 @@ func (b *Bot) GetGroup(jid string) *GroupInfo {
 	}
 }
 
-// ListUsers returns unique users across all groups the bot is a member of.
 func (b *Bot) ListUsers() []GroupParticipantInfo {
 	if !b.client.IsConnected() || b.client.Store.ID == nil {
 		return nil

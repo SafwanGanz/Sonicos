@@ -39,11 +39,11 @@ func (s *TumblrService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 	var data struct {
 		Response struct {
 			Posts []struct {
-				ID        int64  `json:"id"`
-				Type      string `json:"type"`
-				Caption   string `json:"caption"`
-				BlogName  string `json:"blog_name"`
-				Photos    []struct {
+				ID       int64  `json:"id"`
+				Type     string `json:"type"`
+				Caption  string `json:"caption"`
+				BlogName string `json:"blog_name"`
+				Photos   []struct {
 					OriginalSize struct {
 						URL    string `json:"url"`
 						Width  int    `json:"width"`
@@ -83,10 +83,10 @@ func (s *TumblrService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 			DirectURL: true,
 			Filename:  fmt.Sprintf("%s.mp4", title),
 			Metadata: map[string]string{
-				"service":   "tumblr",
-				"post_id":   fmt.Sprintf("%d", post.ID),
-				"blog":      post.BlogName,
-				"type":      "video",
+				"service": "tumblr",
+				"post_id": fmt.Sprintf("%d", post.ID),
+				"blog":    post.BlogName,
+				"type":    "video",
 			},
 		}
 		results = append(results, result)
@@ -95,18 +95,18 @@ func (s *TumblrService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 	for _, photo := range post.Photos {
 		if photo.OriginalSize.URL != "" {
 			result := DownloadResult{
-				URL:        photo.OriginalSize.URL,
-				Title:      title,
-				MediaType:  MediaTypeImage,
-				Quality:    QualityBest,
-				Extension:  "jpg",
-				DirectURL:  true,
-				Filename:   fmt.Sprintf("%s.jpg", title),
+				URL:       photo.OriginalSize.URL,
+				Title:     title,
+				MediaType: MediaTypeImage,
+				Quality:   QualityBest,
+				Extension: "jpg",
+				DirectURL: true,
+				Filename:  fmt.Sprintf("%s.jpg", title),
 				Metadata: map[string]string{
-					"service":  "tumblr",
-					"post_id":  fmt.Sprintf("%d", post.ID),
-					"blog":     post.BlogName,
-					"type":     "image",
+					"service": "tumblr",
+					"post_id": fmt.Sprintf("%d", post.ID),
+					"blog":    post.BlogName,
+					"type":    "image",
 				},
 			}
 			results = append(results, result)
@@ -123,10 +123,10 @@ func (s *TumblrService) Extract(ctx context.Context, urlStr string) ([]DownloadR
 			DirectURL: true,
 			Filename:  fmt.Sprintf("%s.html", title),
 			Metadata: map[string]string{
-				"service":  "tumblr",
-				"post_id":  fmt.Sprintf("%d", post.ID),
-				"blog":     post.BlogName,
-				"type":     "player",
+				"service": "tumblr",
+				"post_id": fmt.Sprintf("%d", post.ID),
+				"blog":    post.BlogName,
+				"type":    "player",
 			},
 		}
 		results = append(results, result)

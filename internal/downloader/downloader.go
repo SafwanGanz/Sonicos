@@ -13,35 +13,35 @@ import (
 type MediaType string
 
 const (
-	MediaTypeVideo  MediaType = "video"
-	MediaTypeAudio  MediaType = "audio"
-	MediaTypeImage  MediaType = "image"
-	MediaTypeMixed  MediaType = "mixed"
+	MediaTypeVideo MediaType = "video"
+	MediaTypeAudio MediaType = "audio"
+	MediaTypeImage MediaType = "image"
+	MediaTypeMixed MediaType = "mixed"
 )
 
 type Quality string
 
 const (
-	QualityBest   Quality = "best"
-	Quality1080p  Quality = "1080p"
-	Quality720p   Quality = "720p"
-	Quality480p   Quality = "480p"
-	Quality360p   Quality = "360p"
-	QualityAudio  Quality = "audio"
+	QualityBest  Quality = "best"
+	Quality1080p Quality = "1080p"
+	Quality720p  Quality = "720p"
+	Quality480p  Quality = "480p"
+	Quality360p  Quality = "360p"
+	QualityAudio Quality = "audio"
 )
 
 type DownloadResult struct {
-	URL         string            `json:"url"`
-	MediaType   MediaType         `json:"media_type"`
-	Quality     Quality           `json:"quality"`
-	Extension   string            `json:"extension"`
-	Filename    string            `json:"filename"`
-	Filesize    int64             `json:"filesize,omitempty"`
-	Duration    int               `json:"duration,omitempty"`
-	Title       string            `json:"title,omitempty"`
-	Thumbnail   string            `json:"thumbnail,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	DirectURL   bool              `json:"direct_url"`
+	URL       string            `json:"url"`
+	MediaType MediaType         `json:"media_type"`
+	Quality   Quality           `json:"quality"`
+	Extension string            `json:"extension"`
+	Filename  string            `json:"filename"`
+	Filesize  int64             `json:"filesize,omitempty"`
+	Duration  int               `json:"duration,omitempty"`
+	Title     string            `json:"title,omitempty"`
+	Thumbnail string            `json:"thumbnail,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	DirectURL bool              `json:"direct_url"`
 }
 
 type Service interface {

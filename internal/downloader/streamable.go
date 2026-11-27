@@ -36,11 +36,11 @@ func (s *StreamableService) Extract(ctx context.Context, urlStr string) ([]Downl
 	defer resp.Body.Close()
 
 	var data struct {
-		Title       string `json:"title"`
-		Duration    float64 `json:"duration"`
-		Filesize    int64  `json:"filesize"`
-		Thumbnail   string `json:"thumbnail_url"`
-		Owner       struct {
+		Title     string  `json:"title"`
+		Duration  float64 `json:"duration"`
+		Filesize  int64   `json:"filesize"`
+		Thumbnail string  `json:"thumbnail_url"`
+		Owner     struct {
 			Username string `json:"username"`
 		} `json:"owner"`
 		Files map[string]struct {
@@ -72,21 +72,21 @@ func (s *StreamableService) Extract(ctx context.Context, urlStr string) ([]Downl
 			ext = "mp4"
 		}
 		result := DownloadResult{
-			URL:        file.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    quality,
-			Extension:  ext,
-			Duration:   int(data.Duration),
-			Thumbnail:  data.Thumbnail,
-			Filesize:   int64(float64(file.Bitrate) * data.Duration / 8),
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_%s.%s", title, name, ext),
+			URL:       file.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   quality,
+			Extension: ext,
+			Duration:  int(data.Duration),
+			Thumbnail: data.Thumbnail,
+			Filesize:  int64(float64(file.Bitrate) * data.Duration / 8),
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_%s.%s", title, name, ext),
 			Metadata: map[string]string{
-				"service":   "streamable",
-				"video_id":  videoID,
-				"owner":     data.Owner.Username,
-				"variant":   name,
+				"service":  "streamable",
+				"video_id": videoID,
+				"owner":    data.Owner.Username,
+				"variant":  name,
 			},
 		}
 		if file.Width > 0 && file.Height > 0 {

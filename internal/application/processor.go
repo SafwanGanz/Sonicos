@@ -19,11 +19,17 @@ type Idempotency interface {
 
 type Reply = command.ReplyFunc
 
+type AIRouter interface {
+	Handle(context.Context, command.Message, Reply) (bool, error)
+}
+
 type Processor struct {
 	registry    *command.Registry
 	idempotency Idempotency
 	prefix      string
 	timeout     time.Duration
+	aiTimeout   time.Duration
+	ai          AIRouter
 	logger      *slog.Logger
 }
 
@@ -42,20 +48,30 @@ func NewProcessor(registry *command.Registry, idempotency Idempotency, prefix st
 		idempotency: idempotency,
 		prefix:      prefix,
 		timeout:     timeout,
+		aiTimeout:   2 * time.Minute,
 		logger:      logger,
 	}, nil
+}
+
+func (p *Processor) SetAIRouter(router AIRouter) {
+	p.ai = router
 }
 
 func (p *Processor) Handle(parent context.Context, message command.Message, reply Reply) error {
 	text := strings.TrimSpace(message.Text)
 	isCommand := text != "" && strings.HasPrefix(text, p.prefix)
 	watchers := p.registry.Watchers()
+	aiCandidate := p.ai != nil && !isCommand && !message.FromMe
 	shouldWatch := !isCommand && message.Group && !message.FromMe && len(watchers) > 0
-	if !isCommand && !shouldWatch {
+	if !isCommand && !shouldWatch && !aiCandidate {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(parent, p.timeout)
+	timeout := p.timeout
+	if aiCandidate && !isCommand && !shouldWatch {
+		timeout = p.aiTimeout
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
 	key := message.Chat + ":" + message.ID
@@ -95,6 +111,15 @@ func (p *Processor) Handle(parent context.Context, message command.Message, repl
 		for _, w := range watchers {
 			if err := w(ctx, message, reply); err != nil {
 				return fmt.Errorf("run message watcher: %w", err)
+			}
+		}
+		if p.ai != nil {
+			handled, err := p.ai.Handle(ctx, message, reply)
+			if err != nil {
+				return fmt.Errorf("run ai router: %w", err)
+			}
+			if handled {
+				dispatched = true
 			}
 		}
 	}

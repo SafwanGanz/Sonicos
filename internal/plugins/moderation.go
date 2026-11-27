@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	maxStickerStrikes    = 3
-	floodStickerLimit    = 4
-	spamMessageLimit     = 6
-	floodWindowSeconds   = 10
-	shieldWarnCooldown   = 10
+	maxStickerStrikes  = 3
+	floodStickerLimit  = 4
+	spamMessageLimit   = 6
+	floodWindowSeconds = 10
+	shieldWarnCooldown = 10
 )
 
 var groupLinkRe = regexp.MustCompile(`(?i)\b(https?://|www\.|chat\.whatsapp\.com/|wa\.me/|t\.me/|discord\.gg/)`)
@@ -104,7 +104,7 @@ func watchBannedStickers(ctx context.Context, msg command.Message, reply command
 	}
 
 	if msg.Sticker != nil {
-		// Best-effort cache so !bansticker works even if a client strips quoted AudioStickerMessage fields.
+
 		if err := msg.ModerationStore.RememberSticker(ctx, msg.Chat, msg.ID, *msg.Sticker); err != nil {
 			slog.Warn("cache incoming sticker metadata", "chat", msg.Chat, "message_id", msg.ID, "error", err)
 		}

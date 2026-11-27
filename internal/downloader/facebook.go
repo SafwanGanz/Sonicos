@@ -43,7 +43,7 @@ func (s *FacebookService) Extract(ctx context.Context, urlStr string) ([]Downloa
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	
+
 	var results []DownloadResult
 
 	if strings.HasPrefix(bodyStr, "for (;;);") {
@@ -52,10 +52,10 @@ func (s *FacebookService) Extract(ctx context.Context, urlStr string) ([]Downloa
 
 	var data struct {
 		Video struct {
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			Duration    int    `json:"duration"`
-			Preview     string `json:"preview"`
+			Title           string `json:"title"`
+			Description     string `json:"description"`
+			Duration        int    `json:"duration"`
+			Preview         string `json:"preview"`
 			BrowserNativeSD struct {
 				URL string `json:"url"`
 			} `json:"browser_native_sd"`
@@ -76,19 +76,19 @@ func (s *FacebookService) Extract(ctx context.Context, urlStr string) ([]Downloa
 
 	if data.Video.BrowserNativeHD.URL != "" {
 		result := DownloadResult{
-			URL:        data.Video.BrowserNativeHD.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    Quality720p,
-			Extension:  "mp4",
-			Duration:   data.Video.Duration,
-			Thumbnail:  data.Video.Preview,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_hd.mp4", title),
+			URL:       data.Video.BrowserNativeHD.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   Quality720p,
+			Extension: "mp4",
+			Duration:  data.Video.Duration,
+			Thumbnail: data.Video.Preview,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_hd.mp4", title),
 			Metadata: map[string]string{
-				"service":   "facebook",
-				"video_id":  videoID,
-				"quality":   "hd",
+				"service":  "facebook",
+				"video_id": videoID,
+				"quality":  "hd",
 			},
 		}
 		results = append(results, result)
@@ -96,19 +96,19 @@ func (s *FacebookService) Extract(ctx context.Context, urlStr string) ([]Downloa
 
 	if data.Video.BrowserNativeSD.URL != "" {
 		result := DownloadResult{
-			URL:        data.Video.BrowserNativeSD.URL,
-			Title:      title,
-			MediaType:  MediaTypeVideo,
-			Quality:    Quality480p,
-			Extension:  "mp4",
-			Duration:   data.Video.Duration,
-			Thumbnail:  data.Video.Preview,
-			DirectURL:  true,
-			Filename:   fmt.Sprintf("%s_sd.mp4", title),
+			URL:       data.Video.BrowserNativeSD.URL,
+			Title:     title,
+			MediaType: MediaTypeVideo,
+			Quality:   Quality480p,
+			Extension: "mp4",
+			Duration:  data.Video.Duration,
+			Thumbnail: data.Video.Preview,
+			DirectURL: true,
+			Filename:  fmt.Sprintf("%s_sd.mp4", title),
 			Metadata: map[string]string{
-				"service":   "facebook",
-				"video_id":  videoID,
-				"quality":   "sd",
+				"service":  "facebook",
+				"video_id": videoID,
+				"quality":  "sd",
 			},
 		}
 		results = append(results, result)
